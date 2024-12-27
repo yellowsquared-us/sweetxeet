@@ -29,7 +29,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final AuthService _authService = AuthService();
+  final GoogleAuthService _authService = GoogleAuthService();
   bool _isLoading = false;
 
   Future<void> _handleSignIn() async {
@@ -39,7 +39,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final success = await _authService.signInWithGoogle();
-      if (success) {
+      if (success != null) {
         // Navigate to home page or show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
