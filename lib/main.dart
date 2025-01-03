@@ -40,6 +40,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final success = await _authService.signInWithGoogle();
       if (success != null) {
+        print(success.accessToken);
         // Navigate to home page or show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

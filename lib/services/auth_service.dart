@@ -1,20 +1,35 @@
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
 
 class GoogleAuthService {
-  static const String _clientId =
+  // Platform-specific client IDs
+  static const String _androidClientId =
       '682978310543-gpur1a213um0a1u83gagb53emiis3gcs.apps.googleusercontent.com';
-  static const String _redirectUrl = 'com.example.sweetxeet:/oauth2redirect';
+  static const String _iosClientId =
+      '682978310543-rn5qcvctijr58sl2bgp5ap6b1f6tivpg.apps.googleusercontent.com';
 
-  // Google's OAuth endpoints
+  // Get the appropriate client ID based on platform
+  String get _clientId {
+    if (Platform.isAndroid) {
+      return _androidClientId;
+    } else if (Platform.isIOS) {
+      return _iosClientId;
+    } else {
+      throw UnsupportedError('Unsupported platform for Google Sign In');
+    }
+  }
+
+  static const String _redirectUrl = 'com.example.sweetxeet:/oauth2redirect';
   static const String _discoveryUrl =
       'https://accounts.google.com/.well-known/openid-configuration';
 
-  final FlutterAppAuth _appAuth = FlutterAppAuth();
+  final FlutterAppAuth _appAuth = const FlutterAppAuth();
 
   Future<AuthorizationTokenResponse?> signInWithGoogle() async {
     try {
-      final AuthorizationTokenResponse? result =
+      final AuthorizationTokenResponse result =
           await _appAuth.authorizeAndExchangeCode(
         AuthorizationTokenRequest(
           _clientId,
@@ -47,7 +62,7 @@ class GoogleAuthService {
 
   Future<TokenResponse?> refreshAccessToken(String refreshToken) async {
     try {
-      final TokenResponse? result = await _appAuth.token(
+      final TokenResponse result = await _appAuth.token(
         TokenRequest(
           _clientId,
           _redirectUrl,
@@ -87,6 +102,8 @@ class GoogleAuthService {
 class GoogleSignInButton extends StatelessWidget {
   final GoogleAuthService _authService = GoogleAuthService();
 
+  GoogleSignInButton({super.key});
+
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
@@ -100,7 +117,7 @@ class GoogleSignInButton extends StatelessWidget {
           print('Failed to sign in');
         }
       },
-      child: Text('Sign in with Google'),
+      child: const Text('Sign in with Google'),
     );
   }
 }
