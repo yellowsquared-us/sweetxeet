@@ -1,4 +1,4 @@
-package com.example.sweetxeet
+package com.yellowsquared.sweetxeet
 
 import io.flutter.embedding.android.FlutterActivity
 

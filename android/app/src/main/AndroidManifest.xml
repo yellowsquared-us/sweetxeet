@@ -28,7 +28,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
-                    android:scheme="com.example.sweetxeet"
+                    android:scheme="com.yellowsquared.sweetxeet"
                     android:host="oauth2redirect" />
             </intent-filter>
         </activity>

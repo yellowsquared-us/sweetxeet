@@ -21,11 +21,15 @@ class GoogleAuthService {
     }
   }
 
-  static const String _redirectUrl = 'com.example.sweetxeet:/oauth2redirect';
+  static const String _redirectUrl =
+      'com.yellowsquared.sweetxeet:/oauth2redirect';
   static const String _discoveryUrl =
       'https://accounts.google.com/.well-known/openid-configuration';
 
   final FlutterAppAuth _appAuth = const FlutterAppAuth();
+
+  // Store the ID token for sign out
+  String? _idToken;
 
   Future<AuthorizationTokenResponse?> signInWithGoogle() async {
     try {
@@ -40,20 +44,14 @@ class GoogleAuthService {
             'email',
             'profile',
           ],
-          promptValues: ['select_account'], // Forces account selection
+          promptValues: ['select_account'],
         ),
       );
 
-      if (result != null) {
-        // Store these securely in your app
-        final String? accessToken = result.accessToken;
-        final String? idToken = result.idToken;
-        final String? refreshToken = result.refreshToken;
+      // Store the ID token for later use during sign out
+      _idToken = result.idToken;
 
-        return result;
-      }
-
-      return null;
+      return result;
     } on Exception catch (e) {
       debugPrint('Error during Google sign in: $e');
       return null;
@@ -85,39 +83,82 @@ class GoogleAuthService {
 
   Future<void> signOut() async {
     try {
-      await _appAuth.endSession(
-        EndSessionRequest(
-          postLogoutRedirectUrl: _redirectUrl,
-          idTokenHint:
-              'YOUR_ID_TOKEN', // Pass the ID token received during sign in
-        ),
-      );
+      if (_idToken != null) {
+        await _appAuth.endSession(
+          EndSessionRequest(
+            postLogoutRedirectUrl: _redirectUrl,
+            idTokenHint: _idToken,
+          ),
+        );
+        _idToken = null;
+      }
     } catch (e) {
       debugPrint('Error during sign out: $e');
     }
   }
 }
 
-// Usage example
-class GoogleSignInButton extends StatelessWidget {
-  final GoogleAuthService _authService = GoogleAuthService();
+class GoogleAuthButtons extends StatefulWidget {
+  const GoogleAuthButtons({super.key});
 
-  GoogleSignInButton({super.key});
+  @override
+  State<GoogleAuthButtons> createState() => _GoogleAuthButtonsState();
+}
+
+class _GoogleAuthButtonsState extends State<GoogleAuthButtons> {
+  final GoogleAuthService _authService = GoogleAuthService();
+  bool _isSignedIn = false;
+
+  Future<void> _handleSignIn() async {
+    final result = await _authService.signInWithGoogle();
+    if (result != null) {
+      setState(() {
+        _isSignedIn = true;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Successfully signed in')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to sign in')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    await _authService.signOut();
+    setState(() {
+      _isSignedIn = false;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Successfully signed out')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: () async {
-        final result = await _authService.signInWithGoogle();
-        if (result != null) {
-          // Handle successful sign in
-          print('Successfully signed in: ${result.accessToken}');
-        } else {
-          // Handle sign in failure
-          print('Failed to sign in');
-        }
-      },
-      child: const Text('Sign in with Google'),
-    );
+    return _isSignedIn
+        ? ElevatedButton(
+            onPressed: _handleSignOut,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sign out'),
+          )
+        : ElevatedButton(
+            onPressed: _handleSignIn,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sign in with Google'),
+          );
   }
 }
