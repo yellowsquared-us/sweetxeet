@@ -31,6 +31,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final GoogleAuthService _authService = GoogleAuthService();
   bool _isLoading = false;
+  bool _isSignedIn = false;
 
   Future<void> _handleSignIn() async {
     setState(() {
@@ -40,7 +41,9 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final success = await _authService.signInWithGoogle();
       if (success != null) {
-        // Navigate to home page or show success message
+        setState(() {
+          _isSignedIn = true;
+        });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Successfully signed in!')),
@@ -52,6 +55,30 @@ class _LoginPageState extends State<LoginPage> {
             const SnackBar(content: Text('Sign in failed. Please try again.')),
           );
         }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _authService.signOut();
+      setState(() {
+        _isSignedIn = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Successfully signed out!')),
+        );
       }
     } finally {
       if (mounted) {
@@ -81,19 +108,21 @@ class _LoginPageState extends State<LoginPage> {
               const CircularProgressIndicator()
             else
               ElevatedButton(
-                onPressed: _handleSignIn,
+                onPressed: _isSignedIn ? _handleSignOut : _handleSignIn,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,
                     vertical: 16,
                   ),
+                  backgroundColor: _isSignedIn ? Colors.red : Colors.blue,
+                  foregroundColor: Colors.white,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.login),
-                    SizedBox(width: 8),
-                    Text('Sign in with Google'),
+                    Icon(_isSignedIn ? Icons.logout : Icons.login),
+                    const SizedBox(width: 8),
+                    Text(_isSignedIn ? 'Sign out' : 'Sign in with Google'),
                   ],
                 ),
               ),
