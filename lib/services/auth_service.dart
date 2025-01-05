@@ -2,6 +2,45 @@ import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'api_service.dart';
+
+class AuthService {
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+
+  final storage = const FlutterSecureStorage(
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock,
+      synchronizable: true,
+    ),
+  );
+  final ApiService _apiService = ApiService();
+
+  AuthService._internal();
+
+  Future<bool> isLoggedIn() async {
+    final token = await storage.read(key: 'access_token');
+    return token != null;
+  }
+
+  Future<void> saveAuthData(String accessToken, {String? refreshToken}) async {
+    await storage.write(key: 'access_token', value: accessToken);
+    if (refreshToken != null) {
+      await storage.write(key: 'refresh_token', value: refreshToken);
+    }
+  }
+
+  Future<void> clearAuthData() async {
+    await storage.delete(key: 'access_token');
+    await storage.delete(key: 'refresh_token');
+    await storage.delete(key: 'user_email');
+  }
+
+  Future<String?> getEmailFromStorage() async {
+    return await storage.read(key: 'user_email');
+  }
+}
 
 class GoogleAuthService {
   // Platform-specific client IDs
@@ -9,8 +48,17 @@ class GoogleAuthService {
       '682978310543-gpur1a213um0a1u83gagb53emiis3gcs.apps.googleusercontent.com';
   static const String _iosClientId =
       '682978310543-rn5qcvctijr58sl2bgp5ap6b1f6tivpg.apps.googleusercontent.com';
+  static const String _redirectUrl =
+      'com.yellowsquared.sweetxeet:/oauth2redirect';
+  static const String _discoveryUrl =
+      'https://accounts.google.com/.well-known/openid-configuration';
 
-  // Get the appropriate client ID based on platform
+  final FlutterAppAuth _appAuth = const FlutterAppAuth();
+  final ApiService _apiService = ApiService();
+  final AuthService _authService = AuthService();
+
+  String? _idToken;
+
   String get _clientId {
     if (Platform.isAndroid) {
       return _androidClientId;
@@ -21,63 +69,113 @@ class GoogleAuthService {
     }
   }
 
-  static const String _redirectUrl =
-      'com.yellowsquared.sweetxeet:/oauth2redirect';
-  static const String _discoveryUrl =
-      'https://accounts.google.com/.well-known/openid-configuration';
-
-  final FlutterAppAuth _appAuth = const FlutterAppAuth();
-
-  // Store the ID token for sign out
-  String? _idToken;
-
-  Future<AuthorizationTokenResponse?> signInWithGoogle() async {
+  Future<bool> signInWithGoogle() async {
     try {
-      final AuthorizationTokenResponse result =
+      if (kDebugMode) {
+        print('Starting Google Sign In process...');
+      }
+
+      final AuthorizationTokenResponse? result =
           await _appAuth.authorizeAndExchangeCode(
         AuthorizationTokenRequest(
           _clientId,
           _redirectUrl,
           discoveryUrl: _discoveryUrl,
-          scopes: [
-            'openid',
-            'email',
-            'profile',
-          ],
+          scopes: ['openid', 'email', 'profile'],
           promptValues: ['select_account'],
         ),
       );
 
-      // Store the ID token for later use during sign out
-      _idToken = result.idToken;
+      if (result != null) {
+        if (kDebugMode) {
+          print('Received authorization response');
+          print('Access Token: ${result.accessToken?.substring(0, 10)}...');
+          print('ID Token present: ${result.idToken != null}');
+        }
 
-      return result;
-    } on Exception catch (e) {
-      debugPrint('Error during Google sign in: $e');
-      return null;
+        _idToken = result.idToken;
+
+        // Store tokens
+        await _authService.saveAuthData(
+          result.accessToken!,
+          refreshToken: result.refreshToken,
+        );
+
+        // For mobile platforms, use ID token, for web use access token
+        final tokenToSend = Platform.isAndroid || Platform.isIOS 
+            ? result.idToken 
+            : result.accessToken;
+
+        if (tokenToSend == null) {
+          if (kDebugMode) {
+            print('No token available for authentication');
+          }
+          return false;
+        }
+
+        // Register with backend using appropriate token
+        try {
+          final response = await _apiService.registerWithGoogle(tokenToSend);
+          if (kDebugMode) {
+            print('Backend registration successful');
+          }
+
+          if (response['user'] != null && response['user']['email'] != null) {
+            await _authService.storage.write(
+              key: 'user_email',
+              value: response['user']['email'],
+            );
+          }
+          return true;
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error registering with backend: $e');
+          }
+          return false;
+        }
+      }
+
+      if (kDebugMode) {
+        print('No authorization response received');
+      }
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error during Google sign in: $e');
+      }
+      return false;
     }
   }
 
-  Future<TokenResponse?> refreshAccessToken(String refreshToken) async {
+  Future<bool> refreshAccessToken() async {
     try {
+      final refreshToken =
+          await _authService.storage.read(key: 'refresh_token');
+      if (refreshToken == null) return false;
+
       final TokenResponse result = await _appAuth.token(
         TokenRequest(
           _clientId,
           _redirectUrl,
           discoveryUrl: _discoveryUrl,
           refreshToken: refreshToken,
-          scopes: [
-            'openid',
-            'email',
-            'profile',
-          ],
+          scopes: ['openid', 'email', 'profile'],
         ),
       );
 
-      return result;
+      if (result.accessToken != null) {
+        await _authService.saveAuthData(
+          result.accessToken!,
+          refreshToken: result.refreshToken ?? refreshToken,
+        );
+        return true;
+      }
+      return false;
     } catch (e) {
-      debugPrint('Error refreshing token: $e');
-      return null;
+      if (kDebugMode) {
+        print('Error refreshing token: $e');
+      }
+      return false;
     }
   }
 
@@ -92,73 +190,12 @@ class GoogleAuthService {
         );
         _idToken = null;
       }
+      // Clear stored tokens
+      await _authService.clearAuthData();
     } catch (e) {
-      debugPrint('Error during sign out: $e');
-    }
-  }
-}
-
-class GoogleAuthButtons extends StatefulWidget {
-  const GoogleAuthButtons({super.key});
-
-  @override
-  State<GoogleAuthButtons> createState() => _GoogleAuthButtonsState();
-}
-
-class _GoogleAuthButtonsState extends State<GoogleAuthButtons> {
-  final GoogleAuthService _authService = GoogleAuthService();
-  bool _isSignedIn = false;
-
-  Future<void> _handleSignIn() async {
-    final result = await _authService.signInWithGoogle();
-    if (result != null) {
-      setState(() {
-        _isSignedIn = true;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Successfully signed in')),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to sign in')),
-        );
+      if (kDebugMode) {
+        print('Error during sign out: $e');
       }
     }
-  }
-
-  Future<void> _handleSignOut() async {
-    await _authService.signOut();
-    setState(() {
-      _isSignedIn = false;
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Successfully signed out')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _isSignedIn
-        ? ElevatedButton(
-            onPressed: _handleSignOut,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Sign out'),
-          )
-        : ElevatedButton(
-            onPressed: _handleSignIn,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Sign in with Google'),
-          );
   }
 }
