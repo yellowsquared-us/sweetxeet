@@ -1,3 +1,4 @@
+// lib/services/google_auth_service.dart
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -5,13 +6,11 @@ import 'dart:io' show Platform;
 import 'api_service.dart';
 import 'auth_service.dart';
 
-class GoogleAuthService extends ChangeNotifier {
-  static final GoogleAuthService _instance = GoogleAuthService._internal();
-  factory GoogleAuthService() => _instance;
+class GoogleAuthService {
   static const String _androidClientId =
-      "682978310543-suq149gvpfns266r5sq92v3t5u2aa6pa.apps.googleusercontent.com";
+      '682978310543-gpur1a213um0a1u83gagb53emiis3gcs.apps.googleusercontent.com';
   static const String _iosClientId =
-      "682978310543-rn5qcvctijr58sl2bgp5ap6b1f6tivpg.apps.googleusercontent.com";
+      '682978310543-rn5qcvctijr58sl2bgp5ap6b1f6tivpg.apps.googleusercontent.com';
   static const String _redirectUrl =
       'com.yellowsquared.sweetxeet:/oauth2redirect';
   static const String _discoveryUrl =
@@ -21,43 +20,99 @@ class GoogleAuthService extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   final AuthService _authService = AuthService();
 
-  GoogleAuthService._internal();
+  String? _idToken;
 
-  String get _clientId => Platform.isAndroid ? _androidClientId : _iosClientId;
+  String get _clientId {
+    if (Platform.isAndroid) {
+      return _androidClientId;
+    } else if (Platform.isIOS) {
+      return _iosClientId;
+    } else {
+      throw UnsupportedError('Unsupported platform for Google Sign In');
+    }
+  }
 
-  Future<bool> signInWithGoogle() async {
+  Future<AuthResult> signInWithGoogle() async {
     try {
-      final result = await _appAuth.authorizeAndExchangeCode(
+      if (kDebugMode) {
+        print('Starting Google Sign In process...');
+      }
+
+      final AuthorizationTokenResponse? result =
+          await _appAuth.authorizeAndExchangeCode(
         AuthorizationTokenRequest(
           _clientId,
           _redirectUrl,
           discoveryUrl: _discoveryUrl,
-          scopes: ['openid', 'email'],
+          scopes: ['openid', 'email', 'profile'],
           promptValues: ['select_account'],
         ),
       );
 
       if (result != null) {
+        if (kDebugMode) {
+          print('Received authorization response');
+          print('Access Token: ${result.accessToken?.substring(0, 10)}...');
+          print('ID Token present: ${result.idToken != null}');
+        }
+
+        _idToken = result.idToken;
+
+        // Store tokens
         await _authService.saveAuthData(
           result.accessToken!,
           refreshToken: result.refreshToken,
         );
 
-        final response =
-            await _apiService.registerWithGoogle(result.accessToken!);
-        if (response['user'] != null && response['user']['email'] != null) {
-          await _authService.storage.write(
-            key: 'user_email',
-            value: response['user']['email'],
-          );
+        // For mobile platforms, use ID token, for web use access token
+        final tokenToSend = Platform.isAndroid || Platform.isIOS
+            ? result.idToken
+            : result.accessToken;
+
+        if (tokenToSend == null) {
+          if (kDebugMode) {
+            print('No token available for authentication');
+          }
+          return AuthResult(
+              success: false,
+              errorMessage: 'No authentication token available');
         }
-        notifyListeners();
-        return true;
+
+        // Register with backend using appropriate token
+        try {
+          final response = await _apiService.registerWithGoogle(tokenToSend);
+          if (kDebugMode) {
+            print('Backend registration successful');
+          }
+
+          if (response['user'] != null && response['user']['email'] != null) {
+            await _authService.storage.write(
+              key: 'user_email',
+              value: response['user']['email'],
+            );
+          }
+          return AuthResult(success: true);
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error registering with backend: $e');
+          }
+          return AuthResult(
+              success: false,
+              errorMessage: 'Failed to register with backend: $e');
+        }
       }
-      return false;
+
+      if (kDebugMode) {
+        print('No authorization response received');
+      }
+      return AuthResult(
+          success: false, errorMessage: 'No authorization response received');
     } catch (e) {
-      debugPrint('Error during Google sign in: $e');
-      return false;
+      if (kDebugMode) {
+        print('Error during Google sign in: $e');
+      }
+      return AuthResult(
+          success: false, errorMessage: 'Error during Google sign in: $e');
     }
   }
 
@@ -67,13 +122,13 @@ class GoogleAuthService extends ChangeNotifier {
           await _authService.storage.read(key: 'refresh_token');
       if (refreshToken == null) return false;
 
-      final result = await _appAuth.token(
+      final TokenResponse result = await _appAuth.token(
         TokenRequest(
           _clientId,
           _redirectUrl,
           discoveryUrl: _discoveryUrl,
           refreshToken: refreshToken,
-          scopes: ['openid', 'email'],
+          scopes: ['openid', 'email', 'profile'],
         ),
       );
 
@@ -82,24 +137,34 @@ class GoogleAuthService extends ChangeNotifier {
           result.accessToken!,
           refreshToken: result.refreshToken ?? refreshToken,
         );
-        notifyListeners();
         return true;
       }
       return false;
     } catch (e) {
-      debugPrint('Error refreshing token: $e');
+      if (kDebugMode) {
+        print('Error refreshing token: $e');
+      }
       return false;
     }
   }
 
   Future<void> signOut() async {
-    await _authService.clearAuthData();
-    notifyListeners();
-  }
-
-  // Check sign-in status on app start
-  Future<void> checkSignInStatus() async {
-    await _authService.isLoggedIn();
-    notifyListeners();
+    try {
+      if (_idToken != null) {
+        await _appAuth.endSession(
+          EndSessionRequest(
+            postLogoutRedirectUrl: _redirectUrl,
+            idTokenHint: _idToken,
+          ),
+        );
+        _idToken = null;
+      }
+      // Clear stored tokens
+      await _authService.clearAuthData();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error during sign out: $e');
+      }
+    }
   }
 }

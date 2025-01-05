@@ -1,8 +1,10 @@
+// lib/services/api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
+import '../models/user_profile.dart';
 
 class ApiService {
   static const String baseUrl = 'http://localhost:8000';
@@ -22,31 +24,34 @@ class ApiService {
   }
 
   Future<void> setAccessToken(String token) async {
+    if (kDebugMode) {
+      print('Setting access token: ${token.substring(0, 10)}...');
+    }
     await storage.write(key: 'access_token', value: token);
   }
 
   Future<Map<String, String>> getHeaders() async {
     final token = await getAccessToken();
+    if (kDebugMode) {
+      print('Getting headers with token: ${token?.substring(0, 10)}...');
+    }
+    if (token == null) {
+      throw Exception('No access token found');
+    }
     return {
       'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
     };
   }
 
-  // Google Sign-In registration
-  Future<Map<String, dynamic>> registerWithGoogle(String googleAccessToken) async {
+  Future<Map<String, dynamic>> registerWithGoogle(String token) async {
     try {
       final platform = Platform.isAndroid || Platform.isIOS ? 'mobile' : 'web';
-      
-      final requestBody = platform == 'mobile'
-          ? {
-              'id_token': googleAccessToken,
-              'platform': platform,
-            }
-          : {
-              'code': googleAccessToken,
-              'platform': platform,
-            };
+      final String tokenType = platform == 'mobile' ? 'id_token' : 'code';
+      final requestBody = {
+        tokenType: token,
+        'platform': platform,
+      };
 
       if (kDebugMode) {
         print('Sending Google auth request with body: $requestBody');
@@ -69,175 +74,100 @@ class ApiService {
         // Store the backend token
         if (data['access_token'] != null) {
           await setAccessToken(data['access_token']);
+          if (kDebugMode) {
+            print('Successfully stored access token from Google auth');
+            final storedToken = await getAccessToken();
+            print('Verified stored token: ${storedToken?.substring(0, 10)}...');
+          }
+        } else {
+          throw Exception('No access token in response');
         }
-
         return data;
       } else {
+        if (kDebugMode) {
+          print(
+              'Failed to register with Google: ${response.statusCode}, ${response.body}');
+        }
         throw Exception('Failed to register with Google: ${response.body}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error in Google registration: $e');
+        print('Error during Google registration: $e');
       }
-      rethrow;
+      throw Exception('Error during Google registration: $e');
     }
   }
 
-  // Check if email exists
-  Future<bool> checkEmailExists(String email) async {
+  Future<UserProfile> getUserProfile() async {
     try {
+      final headers = await getHeaders();
+      if (kDebugMode) {
+        print('Getting user profile with headers: $headers');
+      }
+
       final response = await http.get(
-        Uri.parse('$baseUrl/auth/check-email/$email'),
+        Uri.parse('$baseUrl/api/me'),
+        headers: headers,
       );
+
+      if (kDebugMode) {
+        print('Profile response status: ${response.statusCode}');
+        print('Profile response body: ${response.body}');
+      }
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return data['exists'] ?? false;
-      }
-      return false;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error checking email: $e');
-      }
-      rethrow;
-    }
-  }
-
-  // Register new user with email/password
-  Future<Map<String, dynamic>> registerUser(String email, String password) async {
-    try {
-      final response = await post('/auth/register', body: {
-        'email': email,
-        'password': password,
-      });
-
-      // Store the token if registration is successful
-      if (response['access_token'] != null) {
-        await setAccessToken(response['access_token']);
-      }
-
-      return response;
-    } catch (e) {
-      if (e.toString().contains('Email already registered')) {
-        throw const EmailAlreadyExistsException();
-      }
-      rethrow;
-    }
-  }
-
-  // Login with email/password
-  Future<Map<String, dynamic>> loginUser(String email, String password) async {
-    final response = await post('/auth/login', body: {
-      'email': email,
-      'password': password,
-    });
-
-    // Store the token if login is successful
-    if (response['access_token'] != null) {
-      await setAccessToken(response['access_token']);
-    }
-
-    return response;
-  }
-
-  // Verify email
-  Future<bool> verifyEmail(String token) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/auth/verify-email'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      return response.statusCode == 200;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error verifying email: $e');
-      }
-      return false;
-    }
-  }
-
-  // Generic POST request
-  Future<dynamic> post(String endpoint, {Map<String, dynamic>? body}) async {
-    try {
-      final headers = await getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-        body: body != null ? json.encode(body) : null,
-      );
-
-      if (kDebugMode) {
-        print('POST Response status: ${response.statusCode}');
-        print('POST Response body: ${response.body}');
-      }
-
-      if (response.statusCode == 401) {
-        throw Exception('Authentication failed');
-      }
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return json.decode(response.body);
+        final profile = UserProfile.fromJson(data);
+        return profile;
       } else {
-        throw Exception('Failed to post data: ${response.body}');
+        if (kDebugMode) {
+          print(
+              'Failed to get user profile: ${response.statusCode}, ${response.body}');
+        }
+        throw Exception('Failed to get user profile: ${response.body}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error in POST request: $e');
+        print('Error during get user profile: $e');
       }
-      rethrow;
-    }
-  }
-
-  // Generic GET request
-  Future<dynamic> get(String endpoint) async {
-    try {
-      final headers = await getHeaders();
-
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-      );
-
-      if (response.statusCode == 401) {
-        throw Exception('Authentication failed');
-      }
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to load data: ${response.body}');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error in GET request: $e');
-      }
-      rethrow;
+      throw Exception('Error during get user profile: $e');
     }
   }
 
   Future<bool> resendVerificationEmail(String email) async {
     try {
-      final response = await post('/auth/resend-verification', body: {
-        'email': email,
-      });
-
-      if (response['message'] != null) {
-        return true;
+      if (kDebugMode) {
+        print('Requesting verification email resend for: $email');
       }
-      return false;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/resend-verification'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email}),
+      );
+
+      if (kDebugMode) {
+        print('Resend verification response status: ${response.statusCode}');
+        print('Resend verification response body: ${response.body}');
+      }
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['message'] != null;
+      } else {
+        if (kDebugMode) {
+          print(
+              'Failed to resend verification email: ${response.statusCode}, ${response.body}');
+        }
+        throw Exception(
+            'Failed to resend verification email: ${response.body}');
+      }
     } catch (e) {
       if (kDebugMode) {
-        print('Error resending verification email: $e');
+        print('Error during verification email resend: $e');
       }
-      return false;
+      throw Exception('Error during verification email resend: $e');
     }
-  }
-
-  // Get user profile
-  Future<UserProfile> getUserProfile() async {
-    final data = await get('/api/me');
-    return UserProfile.fromJson(data);
   }
 
   Future<void> refreshToken() async {
@@ -248,25 +178,4 @@ class ApiService {
 // Custom exception for email already exists
 class EmailAlreadyExistsException implements Exception {
   const EmailAlreadyExistsException();
-}
-
-// Models
-class UserProfile {
-  final String email;
-  final String? picture;
-  final bool emailVerified;
-
-  UserProfile({
-    required this.email,
-    this.picture,
-    required this.emailVerified,
-  });
-
-  factory UserProfile.fromJson(Map<String, dynamic> json) {
-    return UserProfile(
-      email: json['email'],
-      picture: json['picture_url'],
-      emailVerified: json['email_verified'] ?? false,
-    );
-  }
 }

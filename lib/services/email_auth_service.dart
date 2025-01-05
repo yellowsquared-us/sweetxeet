@@ -1,3 +1,4 @@
+// lib/services/email_auth_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -38,10 +39,11 @@ class EmailAuthService extends ChangeNotifier {
       // Handle specific error messages
       String errorMessage = responseData['detail'] ?? 'Registration failed';
       return AuthResult(success: false, errorMessage: errorMessage);
-      
     } catch (e) {
       debugPrint('Error during registration: $e');
-      return AuthResult(success: false, errorMessage: 'An error occurred during registration');
+      return AuthResult(
+          success: false,
+          errorMessage: 'An error occurred during registration');
     }
   }
 
@@ -71,10 +73,10 @@ class EmailAuthService extends ChangeNotifier {
       // Handle specific error messages
       String errorMessage = responseData['detail'] ?? 'Login failed';
       return AuthResult(success: false, errorMessage: errorMessage);
-      
     } catch (e) {
       debugPrint('Error during login: $e');
-      return AuthResult(success: false, errorMessage: 'An error occurred during login');
+      return AuthResult(
+          success: false, errorMessage: 'An error occurred during login');
     }
   }
 

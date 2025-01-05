@@ -1,6 +1,7 @@
+// lib/screens/auth_screen.dart
 import 'package:flutter/material.dart';
 import '../services/email_auth_service.dart';
-import '../services/auth_service.dart';
+import '../services/google_auth_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -27,7 +28,12 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
+    debugPrint('_submitForm called, _isLogin: $_isLogin');
+
+    if (!_formKey.currentState!.validate()) {
+      debugPrint('Form validation failed');
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -35,6 +41,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
+      debugPrint('Attempting authentication. IsLogin: $_isLogin');
       final result = _isLogin
           ? await _emailAuthService.login(
               email: _emailController.text,
@@ -46,18 +53,24 @@ class _AuthScreenState extends State<AuthScreen> {
             );
 
       if (result.success && mounted) {
+        debugPrint('Authentication successful');
         _clearForm(); // Clear form on success
-        Navigator.of(context).pushReplacementNamed('/home');
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/profile');
+        }
       } else {
+        debugPrint('Authentication failed with message: ${result.errorMessage}');
         setState(() {
           _errorMessage = result.errorMessage ?? 'Authentication failed';
         });
       }
     } catch (e) {
+      debugPrint('Error during authentication: $e');
       setState(() {
         _errorMessage = e.toString();
       });
     } finally {
+      debugPrint('Authentication process completed.');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -76,7 +89,9 @@ class _AuthScreenState extends State<AuthScreen> {
       final result = await _googleAuthService.signInWithGoogle();
       if (result.success && mounted) {
         _clearForm(); // Clear form on success
-        Navigator.of(context).pushReplacementNamed('/home');
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/profile');
+        }
       } else {
         setState(() {
           _errorMessage = result.errorMessage ?? 'Google sign-in failed';
@@ -126,6 +141,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     labelText: 'Email',
                     border: OutlineInputBorder(),
                   ),
+                  autocorrect: false,
+                  textCapitalization: TextCapitalization.none,
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -189,6 +206,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ? null
                       : () {
                           setState(() {
+                            debugPrint('Toggle _isLogin to: ${!_isLogin}');
                             _isLogin = !_isLogin;
                             _errorMessage = null;
                             _clearForm(); // Clear form when switching between login/register
