@@ -34,11 +34,9 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _nameController = TextEditingController();
-
-  final GoogleAuthService _googleAuthService = GoogleAuthService();
-  final EmailAuthService _emailAuthService = EmailAuthService();
-  final ApiService _apiService = ApiService();
+  final _emailAuthService = EmailAuthService();
+  final _googleAuthService = GoogleAuthService();
+  final _apiService = ApiService();
 
   bool _isLoading = false;
   bool _isRegistering = false;
@@ -62,16 +60,26 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final result = await _googleAuthService.signInWithGoogle();
-      if (result && mounted) {
+      if (result.success && mounted) {
         setState(() => _isSignedIn = true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Successfully signed in with Google')),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ?? 'Google sign in failed'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign in failed: $e')),
+          SnackBar(
+            content: Text('Sign in failed: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -87,21 +95,20 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      bool success;
-      if (_isRegistering) {
-        success = await _emailAuthService.register(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
-      } else {
-        success = await _emailAuthService.login(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
-      }
+      final result = _isRegistering
+          ? await _emailAuthService.register(
+              email: _emailController.text,
+              password: _passwordController.text,
+            )
+          : await _emailAuthService.login(
+              email: _emailController.text,
+              password: _passwordController.text,
+            );
 
-      if (success && mounted) {
+      if (result.success && mounted) {
         setState(() => _isSignedIn = true);
+        _emailController.clear();
+        _passwordController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_isRegistering
@@ -111,13 +118,19 @@ class _LoginPageState extends State<LoginPage> {
         );
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication failed')),
+          SnackBar(
+            content: Text(result.errorMessage ?? 'Authentication failed'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -150,7 +163,6 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _nameController.dispose();
     super.dispose();
   }
 
@@ -176,22 +188,6 @@ class _LoginPageState extends State<LoginPage> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      if (_isRegistering)
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Name',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) {
-                            if (_isRegistering &&
-                                (value == null || value.isEmpty)) {
-                              return 'Please enter your name';
-                            }
-                            return null;
-                          },
-                        ),
-                      const SizedBox(height: 16),
                       TextFormField(
                         controller: _emailController,
                         decoration: const InputDecoration(
@@ -251,8 +247,14 @@ class _LoginPageState extends State<LoginPage> {
                       TextButton(
                         onPressed: _isLoading
                             ? null
-                            : () => setState(
-                                () => _isRegistering = !_isRegistering),
+                            : () {
+                                setState(() {
+                                  _isRegistering = !_isRegistering;
+                                  // Clear form when switching modes
+                                  _emailController.clear();
+                                  _passwordController.clear();
+                                });
+                              },
                         child: Text(_isRegistering
                             ? 'Already have an account? Login'
                             : 'Need an account? Register'),

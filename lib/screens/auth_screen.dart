@@ -13,13 +13,18 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _nameController = TextEditingController();
   final _emailAuthService = EmailAuthService();
   final _googleAuthService = GoogleAuthService();
 
   bool _isLoading = false;
   bool _isLogin = true; // Toggle between login and registration
   String? _errorMessage;
+
+  void _clearForm() {
+    _emailController.clear();
+    _passwordController.clear();
+    _errorMessage = null;
+  }
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
@@ -29,25 +34,23 @@ class _AuthScreenState extends State<AuthScreen> {
       _errorMessage = null;
     });
 
-    bool success;
     try {
-      if (_isLogin) {
-        success = await _emailAuthService.login(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
-      } else {
-        success = await _emailAuthService.register(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
-      }
+      final result = _isLogin
+          ? await _emailAuthService.login(
+              email: _emailController.text,
+              password: _passwordController.text,
+            )
+          : await _emailAuthService.register(
+              email: _emailController.text,
+              password: _passwordController.text,
+            );
 
-      if (success && mounted) {
+      if (result.success && mounted) {
+        _clearForm(); // Clear form on success
         Navigator.of(context).pushReplacementNamed('/home');
       } else {
         setState(() {
-          _errorMessage = 'Authentication failed. Please try again.';
+          _errorMessage = result.errorMessage ?? 'Authentication failed';
         });
       }
     } catch (e) {
@@ -70,12 +73,13 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      final success = await _googleAuthService.signInWithGoogle();
-      if (success && mounted) {
+      final result = await _googleAuthService.signInWithGoogle();
+      if (result.success && mounted) {
+        _clearForm(); // Clear form on success
         Navigator.of(context).pushReplacementNamed('/home');
       } else {
         setState(() {
-          _errorMessage = 'Google sign-in failed. Please try again.';
+          _errorMessage = result.errorMessage ?? 'Google sign-in failed';
         });
       }
     } catch (e) {
@@ -95,7 +99,6 @@ class _AuthScreenState extends State<AuthScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _nameController.dispose();
     super.dispose();
   }
 
@@ -117,16 +120,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                if (!_isLogin) ...[
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Name',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -176,9 +169,18 @@ class _AuthScreenState extends State<AuthScreen> {
                   onPressed: _isLoading ? null : _submitForm,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator()
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : Text(_isLogin ? 'Login' : 'Register'),
                 ),
                 const SizedBox(height: 16),
@@ -189,6 +191,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           setState(() {
                             _isLogin = !_isLogin;
                             _errorMessage = null;
+                            _clearForm(); // Clear form when switching between login/register
                           });
                         },
                   child: Text(_isLogin

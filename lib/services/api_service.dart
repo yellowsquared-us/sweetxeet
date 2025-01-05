@@ -104,13 +104,11 @@ class ApiService {
   }
 
   // Register new user with email/password
-  Future<Map<String, dynamic>> registerUser(
-      String email, String password, String? name) async {
+  Future<Map<String, dynamic>> registerUser(String email, String password) async {
     try {
       final response = await post('/auth/register', body: {
         'email': email,
         'password': password,
-        if (name != null) 'name': name,
       });
 
       // Store the token if registration is successful
@@ -255,13 +253,11 @@ class EmailAlreadyExistsException implements Exception {
 // Models
 class UserProfile {
   final String email;
-  final String? name;
   final String? picture;
   final bool emailVerified;
 
   UserProfile({
     required this.email,
-    this.name,
     this.picture,
     required this.emailVerified,
   });
@@ -269,8 +265,7 @@ class UserProfile {
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       email: json['email'],
-      name: json['name'],
-      picture: json['picture'],
+      picture: json['picture_url'],
       emailVerified: json['email_verified'] ?? false,
     );
   }

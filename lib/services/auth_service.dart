@@ -5,6 +5,13 @@ import 'dart:io' show Platform;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api_service.dart';
 
+class AuthResult {
+  final bool success;
+  final String? errorMessage;
+
+  AuthResult({required this.success, this.errorMessage});
+}
+
 class AuthService {
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
@@ -43,7 +50,6 @@ class AuthService {
 }
 
 class GoogleAuthService {
-  // Platform-specific client IDs
   static const String _androidClientId =
       '682978310543-gpur1a213um0a1u83gagb53emiis3gcs.apps.googleusercontent.com';
   static const String _iosClientId =
@@ -69,7 +75,7 @@ class GoogleAuthService {
     }
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<AuthResult> signInWithGoogle() async {
     try {
       if (kDebugMode) {
         print('Starting Google Sign In process...');
@@ -110,7 +116,7 @@ class GoogleAuthService {
           if (kDebugMode) {
             print('No token available for authentication');
           }
-          return false;
+          return AuthResult(success: false, errorMessage: 'No authentication token available');
         }
 
         // Register with backend using appropriate token
@@ -126,24 +132,24 @@ class GoogleAuthService {
               value: response['user']['email'],
             );
           }
-          return true;
+          return AuthResult(success: true);
         } catch (e) {
           if (kDebugMode) {
             print('Error registering with backend: $e');
           }
-          return false;
+          return AuthResult(success: false, errorMessage: 'Failed to register with backend: $e');
         }
       }
 
       if (kDebugMode) {
         print('No authorization response received');
       }
-      return false;
+      return AuthResult(success: false, errorMessage: 'No authorization response received');
     } catch (e) {
       if (kDebugMode) {
         print('Error during Google sign in: $e');
       }
-      return false;
+      return AuthResult(success: false, errorMessage: 'Error during Google sign in: $e');
     }
   }
 

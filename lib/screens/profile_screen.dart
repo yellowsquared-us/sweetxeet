@@ -96,13 +96,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             const SizedBox(height: 16),
             Text(
-              _userProfile?.name ?? 'No name provided',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
               _userProfile?.email ?? '',
-              style: Theme.of(context).textTheme.bodyLarge,
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
