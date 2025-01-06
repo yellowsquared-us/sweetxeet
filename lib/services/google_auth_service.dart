@@ -155,7 +155,7 @@ class GoogleAuthService {
         _idToken = null;
       }
       // Clear stored tokens
-      await _authService.clearAuthData();
+      await _authService.logout();
     } catch (e) {
       if (kDebugMode) {
         print('Error during sign out: $e');

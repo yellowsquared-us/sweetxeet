@@ -334,10 +334,11 @@ class _AuthScreenState extends State<AuthScreen> {
                                 )
                               : Icon(
                                   _isLogin ? Icons.login : Icons.person_add,
+                                  color: Colors.white,
                                   size: 20,
                                 ),
                           label: Text(
-                            _isLogin ? 'Sign in' : 'Create account',
+                            _isLogin ? 'Sign in' : 'Sign up',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -354,25 +355,42 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
 
-                        TextButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _isLogin = !_isLogin;
-                                    _errorMessage = null;
-                                    _clearForm();
-                                  });
-                                },
-                          child: Text(
-                            _isLogin
-                                ? "Don't have an account? Sign up"
-                                : "Already have an account? Sign in",
-                            style: TextStyle(
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.w500,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _isLogin = !_isLogin;
+                                        _errorMessage = null;
+                                        _clearForm();
+                                      });
+                                    },
+                              child: Text(
+                                _isLogin ? "Sign up" : "Sign in",
+                                style: TextStyle(
+                                  color: Colors.blue.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
-                          ),
+                            if (_isLogin)
+                              TextButton(
+                                onPressed: _isLoading
+                                    ? null
+                                    : () => Navigator.pushNamed(
+                                        context, '/forgot-password'),
+                                child: Text(
+                                  'Forgot password?',
+                                  style: TextStyle(
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ),

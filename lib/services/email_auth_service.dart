@@ -82,7 +82,7 @@ class EmailAuthService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await _authService.clearAuthData();
+    await _authService.logout();
     notifyListeners();
   }
 
