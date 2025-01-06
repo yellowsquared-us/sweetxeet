@@ -29,10 +29,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       final profile = await _apiService.getUserProfile();
-      final loginMethod = await _determineLoginMethod();
       setState(() {
         _userProfile = profile;
-        _loginMethod = loginMethod;
+        _loginMethod = profile.authProvider;
         _isLoading = false;
       });
     } catch (e) {
@@ -42,15 +41,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SnackBar(content: Text('Failed to load profile')),
         );
       }
-    }
-  }
-
-  Future<String?> _determineLoginMethod() async {
-    final email = await _emailAuthService.getUserEmail();
-    if (email != null) {
-      return 'email';
-    } else {
-      return 'google';
     }
   }
 
