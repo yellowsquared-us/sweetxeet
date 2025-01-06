@@ -5,9 +5,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import '../models/user_profile.dart';
+import '../config/environment.dart'; // Add this import
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:8000';
+  final String baseUrl = Environment.apiBaseUrl;
   final storage = const FlutterSecureStorage(
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock,

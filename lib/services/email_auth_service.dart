@@ -2,13 +2,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:sweetxeet/config/environment.dart';
 import 'auth_service.dart';
 
 class EmailAuthService extends ChangeNotifier {
   static final EmailAuthService _instance = EmailAuthService._internal();
   factory EmailAuthService() => _instance;
 
-  static const String baseUrl = 'http://localhost:8000'; // Change in production
+  final String baseUrl = Environment.apiBaseUrl;
   final AuthService _authService = AuthService();
 
   EmailAuthService._internal();

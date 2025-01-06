@@ -14,13 +14,11 @@ class Environment {
   static String get apiBaseUrl {
     switch (currentEnvironment) {
       case dev:
-        return 'http://localhost:8000';
-      case staging:
-        return 'https://api.staging.sweetxeet.com';
+        return 'https://api.yellowsquared.us';
       case prod:
-        return 'https://api.sweetxeet.com';
+        return 'https://api.yellowsquared.us';
       default:
-        return 'http://localhost:8000';
+        return 'https://api.yellowsquared.us';
     }
   }
 
