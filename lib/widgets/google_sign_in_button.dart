@@ -12,49 +12,28 @@ class GoogleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: isLoading ? null : onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 1,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: isLoading ? null : onPressed,
+        icon: Image.network(
+          'https://developers.google.com/identity/images/g-logo.png',
+          height: 20,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: Colors.grey, width: 0.5),
+        label: Text(
+          'Continue with Google',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.network(
-            'https://developers.google.com/identity/images/g-logo.png',
-            height: 24,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          side: BorderSide(color: Colors.grey.shade300),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(width: 12),
-          Text(
-            isLoading ? 'Signing in...' : 'Sign in with Google',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          if (isLoading) ...[
-            const SizedBox(width: 12),
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.black54),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
