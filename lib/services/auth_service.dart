@@ -10,11 +10,13 @@ class AuthResult {
   final bool success;
   final String? errorMessage;
   final Map<String, dynamic>? data;
+  final bool? requiresPasswordChange;  // Add this field
 
   AuthResult({
     required this.success,
     this.errorMessage,
     this.data,
+    this.requiresPasswordChange,
   });
 }
 
@@ -121,7 +123,15 @@ class AuthService {
         final data = json.decode(response.body);
         if (data['access_token'] != null) {
           await _apiService.setAccessToken(data['access_token']);
-          return AuthResult(success: true, data: data);
+          
+          // Check if this is a temporary password login
+          final requiresPasswordChange = data['user']?['temp_password_expires_at'] != null;
+          
+          return AuthResult(
+            success: true, 
+            data: data,
+            requiresPasswordChange: requiresPasswordChange,
+          );
         } else {
           return AuthResult(
             success: false,
@@ -130,9 +140,19 @@ class AuthService {
         }
       } else {
         final error = json.decode(response.body);
+        String message = error['detail'] ?? 'Login failed';
+        
+        // Handle expired temporary password
+        if (message.contains('temporary password has expired')) {
+          return AuthResult(
+            success: false,
+            errorMessage: 'Your temporary password has expired. Please request a new password reset.',
+          );
+        }
+        
         return AuthResult(
           success: false,
-          errorMessage: error['detail'] ?? 'Login failed',
+          errorMessage: message,
         );
       }
     } catch (e) {
@@ -142,6 +162,45 @@ class AuthService {
       return AuthResult(
         success: false,
         errorMessage: 'Login failed: $e',
+      );
+    }
+  }
+
+  Future<AuthResult> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final token = await _apiService.getAccessToken();
+      final response = await http.post(
+        Uri.parse('${_apiService.baseUrl}/auth/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'old_password': oldPassword,
+          'new_password': newPassword,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return AuthResult(success: true, data: data);
+      } else {
+        final error = json.decode(response.body);
+        return AuthResult(
+          success: false,
+          errorMessage: error['detail'] ?? 'Failed to change password',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error during password change: $e');
+      }
+      return AuthResult(
+        success: false,
+        errorMessage: 'Failed to change password: $e',
       );
     }
   }
@@ -238,4 +297,8 @@ class AuthService {
       await storage.write(key: 'refresh_token', value: refreshToken);
     }
   }
+}
+
+class EmailAlreadyExistsException implements Exception {
+  const EmailAlreadyExistsException();
 }

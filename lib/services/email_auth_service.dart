@@ -37,7 +37,6 @@ class EmailAuthService extends ChangeNotifier {
         return AuthResult(success: true);
       }
 
-      // Handle specific error messages
       String errorMessage = responseData['detail'] ?? 'Registration failed';
       return AuthResult(success: false, errorMessage: errorMessage);
     } catch (e) {
@@ -53,6 +52,8 @@ class EmailAuthService extends ChangeNotifier {
     required String password,
   }) async {
     try {
+      debugPrint('Attempting login for email: $email');
+      
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
@@ -62,17 +63,42 @@ class EmailAuthService extends ChangeNotifier {
         }),
       );
 
+      debugPrint('Login response status: ${response.statusCode}');
+      debugPrint('Login response body: ${response.body}');
+
       final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
         await _authService.saveAuthData(responseData['access_token']);
         await _authService.storage.write(key: 'user_email', value: email);
         notifyListeners();
-        return AuthResult(success: true);
+
+        // Check if using temporary password
+        final user = responseData['user'];
+        final tempPasswordExpires = user?['temp_password_expires_at'];
+        
+        debugPrint('User data: $user');
+        debugPrint('Temp password expires: $tempPasswordExpires');
+        
+        final bool isTemporaryPassword = tempPasswordExpires != null;
+        
+        debugPrint('Is temporary password: $isTemporaryPassword');
+        
+        return AuthResult(
+          success: true,
+          requiresPasswordChange: isTemporaryPassword,
+          data: responseData,
+        );
       }
 
       // Handle specific error messages
       String errorMessage = responseData['detail'] ?? 'Login failed';
+      if (errorMessage.contains('temporary password has expired')) {
+        return AuthResult(
+          success: false,
+          errorMessage: 'Your temporary password has expired. Please request a new password reset.',
+        );
+      }
       return AuthResult(success: false, errorMessage: errorMessage);
     } catch (e) {
       debugPrint('Error during login: $e');
@@ -92,6 +118,52 @@ class EmailAuthService extends ChangeNotifier {
 
   Future<String?> getUserEmail() async {
     return await _authService.storage.read(key: 'user_email');
+  }
+
+  Future<AuthResult> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final token = await getAccessToken();
+      if (token == null) {
+        return AuthResult(
+          success: false,
+          errorMessage: 'Not authenticated',
+        );
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'old_password': oldPassword,
+          'new_password': newPassword,
+        }),
+      );
+
+      debugPrint('Change password response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        return AuthResult(success: true, data: responseData);
+      }
+
+      final error = json.decode(response.body);
+      return AuthResult(
+        success: false,
+        errorMessage: error['detail'] ?? 'Failed to change password',
+      );
+    } catch (e) {
+      debugPrint('Error changing password: $e');
+      return AuthResult(
+        success: false,
+        errorMessage: 'An error occurred while changing password',
+      );
+    }
   }
 
   // Check sign-in status on app start

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/email_auth_service.dart';
+import '../screens/change_password_screen.dart';
 
 class EmailSignInForm extends StatefulWidget {
   final bool isLogin;
@@ -53,7 +54,20 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
 
       if (result.success) {
         _clearForm();
-        widget.onSuccess();
+        
+        if (result.requiresPasswordChange == true && mounted) {
+          // Navigate to change password screen and prevent going back
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ChangePasswordScreen(
+                isTemporaryPassword: true,
+              ),
+            ),
+          );
+        } else {
+          widget.onSuccess();
+        }
       } else {
         setState(() {
           _errorMessage = result.errorMessage ?? 'Authentication failed';
@@ -116,10 +130,8 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
             textInputAction: TextInputAction.next,
             textCapitalization: TextCapitalization.none,
             validator: (value) {
-              if (value?.isEmpty ?? true)
-                return 'Please enter your email';
-              if (!value!.contains('@'))
-                return 'Please enter a valid email';
+              if (value?.isEmpty ?? true) return 'Please enter your email';
+              if (!value!.contains('@')) return 'Please enter a valid email';
               return null;
             },
             enabled: !_isLoading,
@@ -154,15 +166,13 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
             obscureText: true,
             textInputAction: TextInputAction.done,
             validator: (value) {
-              if (value?.isEmpty ?? true)
-                return 'Please enter your password';
+              if (value?.isEmpty ?? true) return 'Please enter your password';
               if (value!.length < 6)
                 return 'Password must be at least 6 characters';
               return null;
             },
             enabled: !_isLoading,
           ),
-
           if (_errorMessage != null)
             Padding(
               padding: const EdgeInsets.only(top: 16),
@@ -175,9 +185,7 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
                 textAlign: TextAlign.center,
               ),
             ),
-
           const SizedBox(height: 24),
-
           ElevatedButton.icon(
             onPressed: _isLoading ? null : _submitForm,
             icon: _isLoading
@@ -211,7 +219,6 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
               elevation: 0,
             ),
           ),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -230,7 +237,7 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
               if (widget.isLogin)
                 TextButton(
                   onPressed: _isLoading
-                      ? null 
+                      ? null
                       : () => Navigator.pushNamed(context, '/forgot-password'),
                   child: Text(
                     'Forgot password?',
