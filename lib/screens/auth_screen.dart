@@ -14,12 +14,10 @@ class _AuthScreenState extends State<AuthScreen> {
   final _googleAuthService = GoogleAuthService();
   bool _isLoading = false;
   bool _isLogin = true;
-  String? _errorMessage;
 
   Future<void> _handleGoogleSignIn() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     try {
@@ -31,9 +29,7 @@ class _AuthScreenState extends State<AuthScreen> {
         if (result.errorMessage != null &&
             !result.errorMessage!.toLowerCase().contains('cancel') &&
             !result.errorMessage!.toLowerCase().contains('aborted')) {
-          setState(() {
-            _errorMessage = result.errorMessage;
-          });
+          setState(() {});
         }
       }
     } catch (e) {
@@ -41,9 +37,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!errorString.contains('cancel') &&
           !errorString.contains('aborted') &&
           !errorString.contains('sign_in_canceled')) {
-        setState(() {
-          _errorMessage = 'An unexpected error occurred';
-        });
+        setState(() {});
       }
     } finally {
       if (mounted) {
@@ -127,7 +121,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     onToggleMode: (isLogin) {
                       setState(() {
                         _isLogin = isLogin;
-                        _errorMessage = null;
                       });
                     },
                     onSuccess: _handleAuthSuccess,
