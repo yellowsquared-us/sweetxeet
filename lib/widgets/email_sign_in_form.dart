@@ -224,7 +224,11 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
                 TextButton(
                   onPressed: _isLoading
                       ? null
-                      : () => Navigator.pushNamed(context, '/forgot-password'),
+                      : () => Navigator.pushNamed(
+                            context,
+                            '/forgot-password',
+                            arguments: _emailController.text,
+                          ),
                   child: Text(
                     'Forgot password?',
                     style: TextStyle(

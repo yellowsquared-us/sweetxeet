@@ -11,11 +11,24 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  late final TextEditingController _emailController;
   final _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
   bool _requestSent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final String? email =
+          ModalRoute.of(context)?.settings.arguments as String?;
+      if (email != null) {
+        _emailController.text = email;
+      }
+    });
+  }
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
