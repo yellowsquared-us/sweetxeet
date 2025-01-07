@@ -51,6 +51,11 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
   }
 
+  void _navigateBack() {
+    // Return the email back to the sign in page
+    Navigator.pop(context, _emailController.text);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_requestSent) {
@@ -97,7 +102,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 32),
                     ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _navigateBack,
                       icon: const Icon(Icons.arrow_back, size: 20),
                       label: const Text('Back to Sign in'),
                       style: ElevatedButton.styleFrom(
@@ -127,6 +132,10 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _navigateBack,
+        ),
       ),
       body: SafeArea(
         child: Center(
@@ -235,7 +244,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _navigateBack,
                       child: Text(
                         'Back to Sign in',
                         style: TextStyle(
