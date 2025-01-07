@@ -9,13 +9,15 @@ class AppError implements Exception {
   AppError(this.message, {this.code, this.originalError});
 
   @override
-  String toString() => 'AppError: $message${code != null ? ' (Code: $code)' : ''}';
+  String toString() =>
+      'AppError: $message${code != null ? ' (Code: $code)' : ''}';
 }
 
 class ErrorHandler {
-  static void handleError(BuildContext context, dynamic error, {StackTrace? stack}) {
+  static void handleError(BuildContext context, dynamic error,
+      {StackTrace? stack}) {
     String message;
-    
+
     if (error is AppError) {
       message = error.message;
       Logger.log(
