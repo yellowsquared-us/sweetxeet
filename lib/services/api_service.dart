@@ -142,7 +142,7 @@ class ApiService {
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/resend-verification'),
+        Uri.parse('$baseUrl/auth/resend_verification'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email}),
       );

@@ -152,45 +152,6 @@ class AuthService {
     }
   }
 
-  Future<AuthResult> changePassword({
-    required String oldPassword,
-    required String newPassword,
-  }) async {
-    try {
-      final token = await _apiService.getAccessToken();
-      final response = await http.post(
-        Uri.parse('${_apiService.baseUrl}/auth/change-password'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({
-          'old_password': oldPassword,
-          'new_password': newPassword,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return AuthResult(success: true, data: data);
-      } else {
-        final error = json.decode(response.body);
-        return AuthResult(
-          success: false,
-          errorMessage: error['detail'] ?? 'Failed to change password',
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error during password change: $e');
-      }
-      return AuthResult(
-        success: false,
-        errorMessage: 'Failed to change password: $e',
-      );
-    }
-  }
-
   Future<AuthResult> requestPasswordReset(String email) async {
     try {
       if (kDebugMode) {
@@ -198,7 +159,7 @@ class AuthService {
       }
 
       final response = await http.post(
-        Uri.parse('${_apiService.baseUrl}/auth/request-password-reset'),
+        Uri.parse('${_apiService.baseUrl}/auth/request_password_reset'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email}),
       );
@@ -225,50 +186,6 @@ class AuthService {
       return AuthResult(
         success: false,
         errorMessage: 'Failed to request password reset: $e',
-      );
-    }
-  }
-
-  Future<AuthResult> resetPassword({
-    required String token,
-    required String newPassword,
-  }) async {
-    try {
-      if (kDebugMode) {
-        print('Resetting password with token: ${token.substring(0, 10)}...');
-      }
-
-      final response = await http.post(
-        Uri.parse('${_apiService.baseUrl}/auth/reset-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'token': token,
-          'new_password': newPassword,
-        }),
-      );
-
-      if (kDebugMode) {
-        print('Password reset response status: ${response.statusCode}');
-        print('Password reset response body: ${response.body}');
-      }
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return AuthResult(success: true, data: data);
-      } else {
-        final error = json.decode(response.body);
-        return AuthResult(
-          success: false,
-          errorMessage: error['detail'] ?? 'Failed to reset password',
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error during password reset: $e');
-      }
-      return AuthResult(
-        success: false,
-        errorMessage: 'Failed to reset password: $e',
       );
     }
   }

@@ -101,52 +101,6 @@ class EmailAuthService extends ChangeNotifier {
     return await _authService.storage.read(key: 'user_email');
   }
 
-  Future<AuthResult> changePassword({
-    required String oldPassword,
-    required String newPassword,
-  }) async {
-    try {
-      final token = await getAccessToken();
-      if (token == null) {
-        return AuthResult(
-          success: false,
-          errorMessage: 'Not authenticated',
-        );
-      }
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/change-password'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({
-          'old_password': oldPassword,
-          'new_password': newPassword,
-        }),
-      );
-
-      debugPrint('Change password response: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        return AuthResult(success: true, data: responseData);
-      }
-
-      final error = json.decode(response.body);
-      return AuthResult(
-        success: false,
-        errorMessage: error['detail'] ?? 'Failed to change password',
-      );
-    } catch (e) {
-      debugPrint('Error changing password: $e');
-      return AuthResult(
-        success: false,
-        errorMessage: 'An error occurred while changing password',
-      );
-    }
-  }
-
   // Check sign-in status on app start
   Future<void> checkSignInStatus() async {
     await _authService.isLoggedIn();
