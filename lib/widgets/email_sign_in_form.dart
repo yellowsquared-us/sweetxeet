@@ -7,11 +7,11 @@ class EmailSignInForm extends StatefulWidget {
   final VoidCallback onSuccess;
 
   const EmailSignInForm({
-    Key? key,
+    super.key,
     required this.isLogin,
     required this.onToggleMode,
     required this.onSuccess,
-  }) : super(key: key);
+  });
 
   @override
   State<EmailSignInForm> createState() => _EmailSignInFormState();
@@ -153,8 +153,9 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
             textInputAction: TextInputAction.done,
             validator: (value) {
               if (value?.isEmpty ?? true) return 'Please enter your password';
-              if (value!.length < 6)
+              if (value!.length < 6) {
                 return 'Password must be at least 6 characters';
+              }
               return null;
             },
             enabled: !_isLoading,
