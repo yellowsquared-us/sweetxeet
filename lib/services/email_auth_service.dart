@@ -53,7 +53,7 @@ class EmailAuthService extends ChangeNotifier {
   }) async {
     try {
       debugPrint('Attempting login for email: $email');
-      
+
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
@@ -72,33 +72,14 @@ class EmailAuthService extends ChangeNotifier {
         await _authService.saveAuthData(responseData['access_token']);
         await _authService.storage.write(key: 'user_email', value: email);
         notifyListeners();
-
-        // Check if using temporary password
-        final user = responseData['user'];
-        final tempPasswordExpires = user?['temp_password_expires_at'];
-        
-        debugPrint('User data: $user');
-        debugPrint('Temp password expires: $tempPasswordExpires');
-        
-        final bool isTemporaryPassword = tempPasswordExpires != null;
-        
-        debugPrint('Is temporary password: $isTemporaryPassword');
-        
         return AuthResult(
           success: true,
-          requiresPasswordChange: isTemporaryPassword,
           data: responseData,
         );
       }
 
       // Handle specific error messages
       String errorMessage = responseData['detail'] ?? 'Login failed';
-      if (errorMessage.contains('temporary password has expired')) {
-        return AuthResult(
-          success: false,
-          errorMessage: 'Your temporary password has expired. Please request a new password reset.',
-        );
-      }
       return AuthResult(success: false, errorMessage: errorMessage);
     } catch (e) {
       debugPrint('Error during login: $e');

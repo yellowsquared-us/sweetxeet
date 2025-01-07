@@ -10,13 +10,11 @@ class AuthResult {
   final bool success;
   final String? errorMessage;
   final Map<String, dynamic>? data;
-  final bool? requiresPasswordChange;  // Add this field
 
   AuthResult({
     required this.success,
     this.errorMessage,
     this.data,
-    this.requiresPasswordChange,
   });
 }
 
@@ -123,14 +121,10 @@ class AuthService {
         final data = json.decode(response.body);
         if (data['access_token'] != null) {
           await _apiService.setAccessToken(data['access_token']);
-          
-          // Check if this is a temporary password login
-          final requiresPasswordChange = data['user']?['temp_password_expires_at'] != null;
-          
+
           return AuthResult(
-            success: true, 
+            success: true,
             data: data,
-            requiresPasswordChange: requiresPasswordChange,
           );
         } else {
           return AuthResult(
@@ -141,15 +135,7 @@ class AuthService {
       } else {
         final error = json.decode(response.body);
         String message = error['detail'] ?? 'Login failed';
-        
-        // Handle expired temporary password
-        if (message.contains('temporary password has expired')) {
-          return AuthResult(
-            success: false,
-            errorMessage: 'Your temporary password has expired. Please request a new password reset.',
-          );
-        }
-        
+
         return AuthResult(
           success: false,
           errorMessage: message,

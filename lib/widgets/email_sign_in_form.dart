@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/email_auth_service.dart';
-import '../screens/change_password_screen.dart';
 
 class EmailSignInForm extends StatefulWidget {
   final bool isLogin;
@@ -54,20 +53,7 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
 
       if (result.success) {
         _clearForm();
-        
-        if (result.requiresPasswordChange == true && mounted) {
-          // Navigate to change password screen and prevent going back
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ChangePasswordScreen(
-                isTemporaryPassword: true,
-              ),
-            ),
-          );
-        } else {
-          widget.onSuccess();
-        }
+        widget.onSuccess();
       } else {
         setState(() {
           _errorMessage = result.errorMessage ?? 'Authentication failed';
