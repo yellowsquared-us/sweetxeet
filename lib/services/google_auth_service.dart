@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import 'api_service.dart';
 import 'auth_service.dart';
+import '../shared/constants.dart';
 
 class GoogleAuthService {
   static const String _androidClientId =
@@ -75,9 +76,12 @@ class GoogleAuthService {
             success: false, errorMessage: 'No authentication token available');
       }
 
-      // Register with backend using appropriate token
+      // Register with backend using appropriate token and app name
       try {
-        final response = await _apiService.registerWithGoogle(tokenToSend);
+        final response = await _apiService.registerWithGoogle(
+          tokenToSend,
+          app: _authService.appName, // Add app name to Google registration
+        );
         if (kDebugMode) {
           print('Backend registration successful');
         }

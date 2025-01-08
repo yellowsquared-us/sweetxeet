@@ -5,7 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import '../models/user_profile.dart';
-import '../config/environment.dart'; // Add this import
+import '../config/environment.dart';
+import 'auth_service.dart';
 
 class ApiService {
   final String baseUrl = Environment.apiBaseUrl;
@@ -45,13 +46,15 @@ class ApiService {
     };
   }
 
-  Future<Map<String, dynamic>> registerWithGoogle(String token) async {
+  Future<Map<String, dynamic>> registerWithGoogle(String token,
+      {required String app}) async {
     try {
       final platform = Platform.isAndroid || Platform.isIOS ? 'mobile' : 'web';
       final String tokenType = platform == 'mobile' ? 'id_token' : 'code';
       final requestBody = {
         tokenType: token,
         'platform': platform,
+        'app': app,
       };
 
       if (kDebugMode) {
@@ -137,6 +140,7 @@ class ApiService {
 
   Future<bool> resendVerificationEmail(String email) async {
     try {
+      final authService = AuthService();
       if (kDebugMode) {
         print('Requesting verification email resend for: $email');
       }
@@ -144,7 +148,10 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/resend_verification'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'email': email}),
+        body: json.encode({
+          'email': email,
+          'app': authService.appName,
+        }),
       );
 
       if (kDebugMode) {
@@ -174,9 +181,4 @@ class ApiService {
   Future<void> refreshToken() async {
     // Implement token refresh logic if needed
   }
-}
-
-// Custom exception for email already exists
-class EmailAlreadyExistsException implements Exception {
-  const EmailAlreadyExistsException();
 }

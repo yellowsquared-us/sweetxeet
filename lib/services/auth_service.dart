@@ -2,19 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import '../shared/constants.dart';
 import 'api_service.dart';
-
-class AuthResult {
-  final bool success;
-  final String? errorMessage;
-  final Map<String, dynamic>? data;
-
-  AuthResult({
-    required this.success,
-    this.errorMessage,
-    this.data,
-  });
-}
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -28,6 +17,7 @@ class AuthService {
   );
 
   final ApiService _apiService = ApiService();
+  String get appName => AppConstants.appName; // Use constant here
 
   AuthService._internal();
 
@@ -55,6 +45,7 @@ class AuthService {
           'email': email,
           'password': password,
           'name': name,
+          'app': appName,
         }),
       );
 
@@ -107,6 +98,7 @@ class AuthService {
         body: json.encode({
           'email': email,
           'password': password,
+          'app': appName,
         }),
       );
 
@@ -159,7 +151,10 @@ class AuthService {
       final response = await http.post(
         Uri.parse('${_apiService.baseUrl}/auth/request_password_reset'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'email': email}),
+        body: json.encode({
+          'email': email,
+          'app': appName,
+        }),
       );
 
       if (kDebugMode) {
@@ -198,8 +193,4 @@ class AuthService {
       await storage.write(key: 'refresh_token', value: refreshToken);
     }
   }
-}
-
-class EmailAlreadyExistsException implements Exception {
-  const EmailAlreadyExistsException();
 }

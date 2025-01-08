@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:sweetxeet/config/environment.dart';
 import 'auth_service.dart';
+import '../shared/constants.dart';
 
 class EmailAuthService extends ChangeNotifier {
   static final EmailAuthService _instance = EmailAuthService._internal();
