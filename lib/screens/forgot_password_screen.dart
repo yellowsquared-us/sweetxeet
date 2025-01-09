@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:sweetxeet/services/auth_service.dart';
 import 'package:sweetxeet/utils/validators.dart';
+import '../widgets/auth_app_bar.dart';
+import '../widgets/auth_text_field.dart';
+import '../widgets/auth_button.dart';
+import '../widgets/auth_error_text.dart';
+import '../widgets/auth_screen_title.dart';
+import '../widgets/auth_container.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -15,7 +21,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
-  bool _requestSent = false;
+  bool _emailSent = false;
 
   @override
   void initState() {
@@ -38,87 +44,68 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _errorMessage = null;
     });
 
-    final result =
-        await _authService.requestPasswordReset(_emailController.text);
+    try {
+      final result =
+          await _authService.requestPasswordReset(_emailController.text);
 
-    setState(() {
-      _isLoading = false;
-      if (result.success) {
-        _requestSent = true;
-      } else {
-        _errorMessage = result.errorMessage;
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (result.success) {
+            _emailSent = true;
+            Future.delayed(const Duration(seconds: 2), () {
+              if (mounted) {
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/reset-code',
+                  arguments: _emailController.text,
+                );
+              }
+            });
+          } else {
+            _errorMessage = result.errorMessage;
+          }
+        });
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
+      }
+    }
   }
 
   void _navigateBack() {
-    // Return the email back to the sign in page
     Navigator.pop(context, _emailController.text);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_requestSent) {
+    if (_emailSent) {
       return Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: const Text('Reset Password'),
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
+        appBar: const AuthAppBar(title: 'Reset Password'),
         body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 400),
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.mark_email_read,
-                      size: 64,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Check your email',
-                      style:
-                          Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black87,
-                                fontSize: 28,
-                              ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'If an account exists for this email, you will receive password reset instructions.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.black54,
-                            height: 1.5,
-                          ),
-                    ),
-                    const SizedBox(height: 32),
-                    ElevatedButton.icon(
-                      onPressed: _navigateBack,
-                      icon: const Icon(Icons.arrow_back, size: 20),
-                      label: const Text('Back to Sign in'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade600,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(50),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
-                  ],
+          child: AuthContainer(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.mark_email_read,
+                  size: 64,
+                  color: Colors.green,
                 ),
-              ),
+                const SizedBox(height: 24),
+                AuthScreenTitle(
+                  title: 'Check your email',
+                  subtitle:
+                      'We sent a password reset code to ${_emailController.text}',
+                ),
+                const SizedBox(height: 32),
+                const CircularProgressIndicator(),
+              ],
             ),
           ),
         ),
@@ -127,135 +114,56 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Reset Password'),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _navigateBack,
-        ),
+      appBar: AuthAppBar(
+        title: 'Reset Password',
+        onBackPressed: _navigateBack,
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 32),
-                    Text(
-                      'Forgot Password?',
-                      style:
-                          Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black87,
-                                fontSize: 28,
-                              ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Enter your email address and we will send you instructions to reset your password.',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.black54,
-                            height: 1.5,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        hintText: 'name@example.com',
-                        floatingLabelBehavior: FloatingLabelBehavior.never,
-                        prefixIcon: Icon(
-                          Icons.email_outlined,
-                          color: Colors.grey.shade600,
-                          size: 20,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: Colors.blue.shade400, width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.all(16),
-                      ),
-                      style: const TextStyle(fontSize: 16),
-                      validator: Validators.validateEmail,
-                      enabled: !_isLoading,
-                    ),
-                    if (_errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: Text(
-                          _errorMessage!,
-                          style: TextStyle(
-                            color: Colors.red.shade600,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _handleSubmit,
-                      icon: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.send_outlined,
-                              color: Colors.white, size: 20),
-                      label: const Text(
-                        'Send Reset Link',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade600,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _navigateBack,
-                      child: Text(
-                        'Back to Sign in',
-                        style: TextStyle(
-                          color: Colors.blue.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
+        child: AuthContainer(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 32),
+                const AuthScreenTitle(
+                  title: 'Forgot Password?',
+                  subtitle:
+                      'Enter your email address and we will send you a code to reset your password.',
                 ),
-              ),
+                const SizedBox(height: 32),
+                AuthTextField(
+                  controller: _emailController,
+                  labelText: 'Email',
+                  hintText: 'name@example.com',
+                  keyboardType: TextInputType.emailAddress,
+                  prefixIcon: Icon(
+                    Icons.email_outlined,
+                    color: Colors.grey.shade600,
+                    size: 20,
+                  ),
+                  validator: Validators.validateEmail,
+                  enabled: !_isLoading,
+                ),
+                if (_errorMessage != null) AuthErrorText(_errorMessage!),
+                const SizedBox(height: 24),
+                AuthButton(
+                  text: 'Send Reset Code',
+                  onPressed: _handleSubmit,
+                  isLoading: _isLoading,
+                  icon: Icons.send_outlined,
+                ),
+                TextButton(
+                  onPressed: _navigateBack,
+                  child: Text(
+                    'Back to Sign in',
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

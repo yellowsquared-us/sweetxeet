@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../shared/constants.dart';
-import 'api_service.dart';
+import '../config/environment.dart'; // Ensure this import is correct
+import 'api_service.dart'; // Import ApiService
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -16,8 +17,9 @@ class AuthService {
     ),
   );
 
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = ApiService(); // Initialize ApiService
   String get appName => AppConstants.appName; // Use constant here
+  String get baseUrl => Environment.apiBaseUrl;
 
   AuthService._internal();
 
@@ -39,7 +41,7 @@ class AuthService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('${_apiService.baseUrl}/auth/register'),
+        Uri.parse('$baseUrl/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'email': email,
@@ -93,7 +95,7 @@ class AuthService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('${_apiService.baseUrl}/auth/login'),
+        Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'email': email,
@@ -111,7 +113,6 @@ class AuthService {
         final data = json.decode(response.body);
         if (data['access_token'] != null) {
           await _apiService.setAccessToken(data['access_token']);
-
           return AuthResult(
             success: true,
             data: data,
@@ -147,29 +148,27 @@ class AuthService {
       if (kDebugMode) {
         print('Requesting password reset for: $email');
       }
-
       final response = await http.post(
-        Uri.parse('${_apiService.baseUrl}/auth/request_password_reset'),
+        Uri.parse('$baseUrl/auth/request_password_reset'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'email': email,
           'app': appName,
         }),
       );
-
       if (kDebugMode) {
         print('Password reset request response status: ${response.statusCode}');
         print('Password reset request response body: ${response.body}');
       }
 
+      final data = json.decode(response.body);
+
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return AuthResult(success: true, data: data);
+        return AuthResult(success: true);
       } else {
-        final error = json.decode(response.body);
         return AuthResult(
           success: false,
-          errorMessage: error['detail'] ?? 'Failed to request password reset',
+          errorMessage: data['detail'] ?? 'Failed to request password reset',
         );
       }
     } catch (e) {
@@ -178,7 +177,73 @@ class AuthService {
       }
       return AuthResult(
         success: false,
-        errorMessage: 'Failed to request password reset: $e',
+        errorMessage: 'Network error: $e',
+      );
+    }
+  }
+
+  Future<AuthResult> verifyResetCode(String email, String resetCode) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/verify_reset_code'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'reset_code': resetCode,
+        }),
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResult(
+          success: data['valid'] ?? false,
+          errorMessage: data['valid'] ? null : 'Invalid reset code',
+        );
+      } else {
+        return AuthResult(
+          success: false,
+          errorMessage: data['detail'] ?? 'Failed to verify reset code',
+        );
+      }
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        errorMessage: 'Network error: $e',
+      );
+    }
+  }
+
+  Future<AuthResult> resetPasswordWithCode(
+    String email,
+    String resetCode,
+    String newPassword,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/reset_password_with_code'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'reset_code': resetCode,
+          'new_password': newPassword,
+        }),
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResult(success: true);
+      } else {
+        return AuthResult(
+          success: false,
+          errorMessage: data['detail'] ?? 'Failed to reset password',
+        );
+      }
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        errorMessage: 'Network error: $e',
       );
     }
   }
@@ -192,5 +257,13 @@ class AuthService {
     if (refreshToken != null) {
       await storage.write(key: 'refresh_token', value: refreshToken);
     }
+  }
+}
+
+class EmailAlreadyExistsException implements Exception {
+  const EmailAlreadyExistsException();
+  @override
+  String toString() {
+    return 'Email already exists';
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sweetxeet/utils/validators.dart';
 import '../services/email_auth_service.dart';
 
 class EmailSignInForm extends StatefulWidget {
@@ -115,11 +116,7 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             textCapitalization: TextCapitalization.none,
-            validator: (value) {
-              if (value?.isEmpty ?? true) return 'Please enter your email';
-              if (!value!.contains('@')) return 'Please enter a valid email';
-              return null;
-            },
+            validator: Validators.validateEmail,
             enabled: !_isLoading,
           ),
           const SizedBox(height: 16),
@@ -151,13 +148,7 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
             style: const TextStyle(fontSize: 16),
             obscureText: true,
             textInputAction: TextInputAction.done,
-            validator: (value) {
-              if (value?.isEmpty ?? true) return 'Please enter your password';
-              if (value!.length < 6) {
-                return 'Password must be at least 6 characters';
-              }
-              return null;
-            },
+            validator: Validators.validatePassword,
             enabled: !_isLoading,
           ),
           if (_errorMessage != null)
