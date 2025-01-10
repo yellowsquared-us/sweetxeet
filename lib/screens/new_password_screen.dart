@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/validators.dart';
 import '../widgets/auth_app_bar.dart';
-import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
 import '../widgets/auth_error_text.dart';
 import '../widgets/auth_screen_title.dart';
 import '../widgets/auth_container.dart';
+import '../widgets/password_text_field.dart';
 
 class NewPasswordScreen extends StatefulWidget {
   final String email;
@@ -29,8 +29,6 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
 
   Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
@@ -55,11 +53,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/auth',
-            (route) => false,
-          );
+          Navigator.pushReplacementNamed(context, '/auth');
         } else {
           setState(() {
             _errorMessage = result.errorMessage ?? 'Failed to reset password';
@@ -99,58 +93,18 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                       'Your new password must be 6 characters long and contain at least one number',
                 ),
                 const SizedBox(height: 32),
-                AuthTextField(
+                PasswordTextField(
                   controller: _passwordController,
                   labelText: 'New Password',
                   hintText: 'Enter your new password',
-                  obscureText: _obscurePassword,
-                  prefixIcon: Icon(
-                    Icons.lock_outline,
-                    color: Colors.grey.shade600,
-                    size: 20,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.grey.shade600,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
                   validator: Validators.validatePassword,
                   enabled: !_isLoading,
                 ),
                 const SizedBox(height: 16),
-                AuthTextField(
+                PasswordTextField(
                   controller: _confirmPasswordController,
                   labelText: 'Confirm Password',
                   hintText: 'Confirm your new password',
-                  obscureText: _obscureConfirmPassword,
-                  prefixIcon: Icon(
-                    Icons.lock_outline,
-                    color: Colors.grey.shade600,
-                    size: 20,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.grey.shade600,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
-                  ),
                   validator: (value) {
                     if (value != _passwordController.text) {
                       return 'Passwords do not match';

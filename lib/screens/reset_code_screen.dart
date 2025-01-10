@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_app_bar.dart';
-import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
 import '../widgets/auth_error_text.dart';
 import '../widgets/auth_screen_title.dart';
 import '../widgets/auth_container.dart';
+import '../widgets/reset_token_field.dart';
 
 class ResetCodeScreen extends StatefulWidget {
   final String email;
@@ -124,33 +123,10 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                   subtitle: 'We sent a 6-digit code to ${widget.email}',
                 ),
                 const SizedBox(height: 32),
-                AuthTextField(
+                ResetTokenField(
                   controller: _codeController,
-                  labelText: 'Reset Code',
-                  hintText: '000000',
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(6),
-                  ],
-                  style: const TextStyle(
-                    fontSize: 24,
-                    letterSpacing: 8,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) {
-                      return 'Please enter the reset code';
-                    }
-                    if (value!.length != 6) {
-                      return 'Code must be 6 digits';
-                    }
-                    return null;
-                  },
                   enabled: !_isLoading,
                 ),
-                if (_errorMessage != null) AuthErrorText(_errorMessage!),
                 const SizedBox(height: 24),
                 AuthButton(
                   text: 'Verify Code',
@@ -167,6 +143,7 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
                     ),
                   ),
                 ),
+                if (_errorMessage != null) AuthErrorText(_errorMessage!),
               ],
             ),
           ),

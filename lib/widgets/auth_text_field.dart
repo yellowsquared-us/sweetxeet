@@ -5,42 +5,40 @@ class AuthTextField extends StatelessWidget {
   final TextEditingController controller;
   final String labelText;
   final String hintText;
-  final bool obscureText;
-  final TextInputType keyboardType;
-  final String? Function(String?)? validator;
-  final bool enabled;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
-  final List<TextInputFormatter>? inputFormatters;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final TextCapitalization textCapitalization;
+  final String? Function(String?)? validator;
+  final bool enabled;
   final TextAlign textAlign;
+  final List<TextInputFormatter>? inputFormatters;
   final TextStyle? style;
-  final EdgeInsets? contentPadding;
 
   const AuthTextField({
     super.key,
     required this.controller,
     required this.labelText,
     required this.hintText,
-    this.obscureText = false,
-    this.keyboardType = TextInputType.text,
-    this.validator,
-    this.enabled = true,
     this.prefixIcon,
     this.suffixIcon,
-    this.inputFormatters,
+    this.obscureText = false,
+    this.keyboardType,
+    this.textInputAction,
+    this.textCapitalization = TextCapitalization.none,
+    this.validator,
+    this.enabled = true,
     this.textAlign = TextAlign.start,
+    this.inputFormatters,
     this.style,
-    this.contentPadding,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      textAlign: textAlign,
-      style: style,
       decoration: InputDecoration(
         labelText: labelText,
         hintText: hintText,
@@ -59,10 +57,16 @@ class AuthTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
         ),
-        contentPadding: contentPadding ?? const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.all(16),
       ),
+      style: style ?? const TextStyle(fontSize: 16),
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      textCapitalization: textCapitalization,
       validator: validator,
       enabled: enabled,
+      textAlign: textAlign,
       inputFormatters: inputFormatters,
     );
   }

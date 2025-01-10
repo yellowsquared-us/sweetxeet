@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sweetxeet/utils/validators.dart';
 import '../providers/auth_state.dart';
+import 'auth_text_field.dart';
+import 'password_text_field.dart';
 
 class EmailSignInForm extends ConsumerStatefulWidget {
   final bool isLogin;
@@ -68,67 +70,25 @@ class _EmailSignInFormState extends ConsumerState<EmailSignInForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextFormField(
+          AuthTextField(
             controller: _emailController,
-            decoration: InputDecoration(
-              labelText: 'Email',
-              hintText: 'name@example.com',
-              floatingLabelBehavior: FloatingLabelBehavior.never,
-              prefixIcon: Icon(
-                Icons.email_outlined,
-                color: Colors.grey.shade600,
-                size: 20,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-              ),
-              contentPadding: const EdgeInsets.all(16),
+            labelText: 'Email',
+            hintText: 'name@example.com',
+            prefixIcon: Icon(
+              Icons.email_outlined,
+              color: Colors.grey.shade600,
+              size: 20,
             ),
-            style: const TextStyle(fontSize: 16),
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
-            textCapitalization: TextCapitalization.none,
             validator: Validators.validateEmail,
             enabled: !authState.isLoading,
           ),
           const SizedBox(height: 16),
-          TextFormField(
+          PasswordTextField(
             controller: _passwordController,
-            decoration: InputDecoration(
-              labelText: 'Password',
-              hintText: 'Enter your password',
-              floatingLabelBehavior: FloatingLabelBehavior.never,
-              prefixIcon: Icon(
-                Icons.lock_outline,
-                color: Colors.grey.shade600,
-                size: 20,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-              ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-            style: const TextStyle(fontSize: 16),
-            obscureText: true,
-            textInputAction: TextInputAction.done,
+            labelText: 'Password',
+            hintText: 'Enter your password',
             validator: Validators.validatePassword,
             enabled: !authState.isLoading,
           ),
