@@ -1,10 +1,11 @@
-// lib/services/email_auth_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:sweetxeet/config/environment.dart';
+import '../config/environment.dart';
 import 'auth_service.dart';
-import '../shared/constants.dart';
+import '../models/user_profile.dart';
+import '../models/auth_result.dart';
+import 'token_manager.dart';
 
 class EmailAuthService extends ChangeNotifier {
   static final EmailAuthService _instance = EmailAuthService._internal();
@@ -12,6 +13,7 @@ class EmailAuthService extends ChangeNotifier {
 
   final String baseUrl = Environment.apiBaseUrl;
   final AuthService _authService = AuthService();
+  final TokenManager _tokenManager = TokenManager();
 
   EmailAuthService._internal();
 
@@ -32,19 +34,33 @@ class EmailAuthService extends ChangeNotifier {
       final responseData = json.decode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        await _authService.saveAuthData(responseData['access_token']);
+        final accessToken = responseData['access_token'];
+        await _tokenManager.setTokens(
+          accessToken,
+          refreshToken: responseData['refresh_token'],
+        );
         await _authService.storage.write(key: 'user_email', value: email);
+
+        final user = UserProfile(
+          email: email,
+          emailVerified: responseData['email_verified'] ?? false,
+          authProvider: 'email',
+          picture: responseData['picture_url'],
+        );
+
         notifyListeners();
-        return AuthResult(success: true);
+        return AuthResult.success(
+          accessToken: accessToken,
+          user: user,
+          data: responseData,
+        );
       }
 
       String errorMessage = responseData['detail'] ?? 'Registration failed';
-      return AuthResult(success: false, errorMessage: errorMessage);
+      return AuthResult.failure(errorMessage);
     } catch (e) {
       debugPrint('Error during registration: $e');
-      return AuthResult(
-          success: false,
-          errorMessage: 'An error occurred during registration');
+      return AuthResult.failure('An error occurred during registration');
     }
   }
 
@@ -70,22 +86,33 @@ class EmailAuthService extends ChangeNotifier {
       final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
-        await _authService.saveAuthData(responseData['access_token']);
+        final accessToken = responseData['access_token'];
+        await _tokenManager.setTokens(
+          accessToken,
+          refreshToken: responseData['refresh_token'],
+        );
         await _authService.storage.write(key: 'user_email', value: email);
+
+        final user = UserProfile(
+          email: email,
+          emailVerified: responseData['email_verified'] ?? false,
+          authProvider: 'email',
+          picture: responseData['picture_url'],
+        );
+
         notifyListeners();
-        return AuthResult(
-          success: true,
+        return AuthResult.success(
+          accessToken: accessToken,
+          user: user,
           data: responseData,
         );
       }
 
-      // Handle specific error messages
       String errorMessage = responseData['detail'] ?? 'Login failed';
-      return AuthResult(success: false, errorMessage: errorMessage);
+      return AuthResult.failure(errorMessage);
     } catch (e) {
       debugPrint('Error during login: $e');
-      return AuthResult(
-          success: false, errorMessage: 'An error occurred during login');
+      return AuthResult.failure('An error occurred during login');
     }
   }
 
@@ -95,16 +122,10 @@ class EmailAuthService extends ChangeNotifier {
   }
 
   Future<String?> getAccessToken() async {
-    return await _authService.storage.read(key: 'access_token');
+    return await _tokenManager.getAccessToken();
   }
 
   Future<String?> getUserEmail() async {
     return await _authService.storage.read(key: 'user_email');
-  }
-
-  // Check sign-in status on app start
-  Future<void> checkSignInStatus() async {
-    await _authService.isLoggedIn();
-    notifyListeners();
   }
 }

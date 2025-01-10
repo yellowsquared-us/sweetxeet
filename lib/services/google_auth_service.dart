@@ -1,10 +1,12 @@
 // lib/services/google_auth_service.dart
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sweetxeet/models/auth_result.dart';
 import 'dart:io' show Platform;
 import 'api_service.dart';
 import 'auth_service.dart';
 import '../shared/constants.dart';
+import '../models/user_profile.dart';
 
 class GoogleAuthService {
   static const String _androidClientId =
@@ -72,41 +74,47 @@ class GoogleAuthService {
         if (kDebugMode) {
           print('No token available for authentication');
         }
-        return AuthResult(
-            success: false, errorMessage: 'No authentication token available');
+        return AuthResult.failure('No authentication token available');
       }
 
       // Register with backend using appropriate token and app name
       try {
         final response = await _apiService.registerWithGoogle(
           tokenToSend,
-          app: _authService.appName, // Add app name to Google registration
+          app: _authService.appName,
         );
         if (kDebugMode) {
           print('Backend registration successful');
         }
 
-        if (response['user'] != null && response['user']['email'] != null) {
+        if (response['user'] != null) {
+          final user = UserProfile(
+            email: response['user']['email'] ?? '',
+            emailVerified: response['user']['email_verified'] ?? false,
+            picture: response['user']['picture_url'],
+            authProvider: 'google',
+          );
+
           await _authService.storage.write(
             key: 'user_email',
-            value: response['user']['email'],
+            value: user.email,
           );
+
+          return AuthResult.success(user: user, data: response);
         }
-        return AuthResult(success: true);
+
+        return AuthResult.failure('Invalid response from server');
       } catch (e) {
         if (kDebugMode) {
           print('Error registering with backend: $e');
         }
-        return AuthResult(
-            success: false,
-            errorMessage: 'Failed to register with backend: $e');
+        return AuthResult.failure('Failed to register with backend: $e');
       }
     } catch (e) {
       if (kDebugMode) {
         print('Error during Google sign in: $e');
       }
-      return AuthResult(
-          success: false, errorMessage: 'Error during Google sign in: $e');
+      return AuthResult.failure('Error during Google sign in: $e');
     }
   }
 
@@ -144,7 +152,7 @@ class GoogleAuthService {
 
   Future<String?> getAuthToken() async {
     final token = await _authService.storage.read(key: 'access_token');
-    return token; // Returns null if no token is found
+    return token;
   }
 
   Future<void> signOut() async {
@@ -158,7 +166,6 @@ class GoogleAuthService {
         );
         _idToken = null;
       }
-      // Clear stored tokens
       await _authService.logout();
     } catch (e) {
       if (kDebugMode) {

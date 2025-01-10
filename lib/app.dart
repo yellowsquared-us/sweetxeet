@@ -5,9 +5,9 @@ import 'package:sweetxeet/screens/forgot_password_screen.dart';
 import 'package:sweetxeet/screens/reset_code_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/profile_screen.dart';
-import 'screens/reset_code_screen.dart';
 import 'screens/new_password_screen.dart';
 import 'theme/app_theme.dart';
+import 'providers/auth_state.dart';
 
 class App extends ConsumerWidget {
   const App({super.key});
@@ -22,9 +22,26 @@ class App extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/auth',
       onGenerateRoute: (settings) {
+        // Watch auth state to handle navigation
+        final authState = ref.watch(authStateProvider);
+        
+        // If user is not authenticated and trying to access protected routes,
+        // redirect to auth screen
+        if (authState.user == null && 
+            settings.name != '/auth' && 
+            settings.name != '/forgot-password' &&
+            settings.name != '/reset-code' &&
+            settings.name != '/new-password') {
+          return MaterialPageRoute(builder: (_) => const AuthScreen());
+        }
+
         switch (settings.name) {
           case '/':
           case '/auth':
+            // If user is already authenticated, redirect to profile
+            if (authState.user != null) {
+              return MaterialPageRoute(builder: (_) => const ProfileScreen());
+            }
             return MaterialPageRoute(builder: (_) => const AuthScreen());
           case '/profile':
             return MaterialPageRoute(builder: (_) => const ProfileScreen());

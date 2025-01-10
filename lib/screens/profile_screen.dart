@@ -1,21 +1,19 @@
 // lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
-import '../services/email_auth_service.dart';
-import '../services/google_auth_service.dart';
+import '../providers/auth_state.dart';
 import '../models/user_profile.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final ApiService _apiService = ApiService();
-  final EmailAuthService _emailAuthService = EmailAuthService();
-  final GoogleAuthService _googleAuthService = GoogleAuthService();
   UserProfile? _userProfile;
   bool _isLoading = true;
   String? _loginMethod;
@@ -27,20 +25,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
+    // Check auth state first
+    final authState = ref.read(authStateProvider);
+    if (authState.user == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
     try {
       final profile = await _apiService.getUserProfile();
+      if (!mounted) return;
+      
       setState(() {
         _userProfile = profile;
         _loginMethod = profile.authProvider;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
+      
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load profile')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load profile')),
+      );
     }
   }
 
@@ -48,12 +55,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _isLoading = true;
     });
+    
     try {
-      if (_loginMethod == 'email') {
-        await _emailAuthService.logout();
-      } else if (_loginMethod == 'google') {
-        await _googleAuthService.signOut();
-      }
+      // Use the Riverpod auth state notifier to handle sign out
+      await ref.read(authStateProvider.notifier).signOut();
+      
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/auth');
       }
@@ -74,13 +80,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch the auth state
+    final authState = ref.watch(authStateProvider);
+    
     if (_isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (_userProfile == null) {
+    if (_userProfile == null || authState.user == null) {
       return Scaffold(
         body: Center(
           child: Column(

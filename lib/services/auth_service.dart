@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import '../shared/constants.dart';
-import '../config/environment.dart'; // Ensure this import is correct
-import 'api_service.dart'; // Import ApiService
+import 'package:sweetxeet/shared/constants.dart';
+import '../config/environment.dart';
+import 'api_service.dart';
+import 'token_manager.dart';
+import '../models/auth_result.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -17,21 +19,22 @@ class AuthService {
     ),
   );
 
-  final ApiService _apiService = ApiService(); // Initialize ApiService
-  String get appName => AppConstants.appName; // Use constant here
+  final TokenManager _tokenManager = TokenManager();
+  String get appName => AppConstants.appName;
   String get baseUrl => Environment.apiBaseUrl;
 
-  AuthService._internal();
+  AuthService._internal() {
+    _tokenManager.initialize();
+  }
 
   Future<bool> isLoggedIn() async {
-    final token = await _apiService.getAccessToken();
+    final token = await _tokenManager.getAccessToken();
     return token != null;
   }
 
   Future<void> logout() async {
-    await _apiService.storage.delete(key: 'access_token');
-    await _apiService.storage.delete(key: 'refresh_token');
-    await _apiService.storage.delete(key: 'user_email');
+    await _tokenManager.clearTokens();
+    await storage.delete(key: 'user_email');
   }
 
   Future<AuthResult> register({
@@ -47,7 +50,6 @@ class AuthService {
           'email': email,
           'password': password,
           'name': name,
-          'app': appName,
         }),
       );
 
@@ -56,11 +58,19 @@ class AuthService {
         print('Register response body: ${response.body}');
       }
 
+      final responseData = json.decode(response.body);
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        if (data['access_token'] != null) {
-          await _apiService.setAccessToken(data['access_token']);
-          return AuthResult(success: true, data: data);
+        if (responseData['access_token'] != null) {
+          await _tokenManager.setTokens(
+            responseData['access_token'],
+            refreshToken: responseData['refresh_token'],
+          );
+          return AuthResult(
+            success: true,
+            accessToken: responseData['access_token'],
+            data: responseData,
+          );
         } else {
           return AuthResult(
             success: false,
@@ -68,23 +78,26 @@ class AuthService {
           );
         }
       } else {
-        final error = json.decode(response.body);
-        String message = error['detail'] ?? 'Registration failed';
-        if (message.contains('Email already registered')) {
-          throw const EmailAlreadyExistsException();
+        final errorMessage = responseData['detail'] ?? 'Registration failed';
+        if (errorMessage.toLowerCase().contains('email already registered') ||
+            response.statusCode == 409) {
+          return AuthResult(
+            success: false,
+            errorMessage: 'Email already registered',
+          );
         }
-        return AuthResult(success: false, errorMessage: message);
+        return AuthResult(
+          success: false,
+          errorMessage: errorMessage,
+        );
       }
     } catch (e) {
-      if (e is EmailAlreadyExistsException) {
-        rethrow;
-      }
       if (kDebugMode) {
         print('Error during registration: $e');
       }
       return AuthResult(
         success: false,
-        errorMessage: 'Registration failed: $e',
+        errorMessage: 'Registration failed: ${e.toString()}',
       );
     }
   }
@@ -100,7 +113,6 @@ class AuthService {
         body: json.encode({
           'email': email,
           'password': password,
-          'app': appName,
         }),
       );
 
@@ -109,13 +121,18 @@ class AuthService {
         print('Login response body: ${response.body}');
       }
 
+      final responseData = json.decode(response.body);
+
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['access_token'] != null) {
-          await _apiService.setAccessToken(data['access_token']);
+        if (responseData['access_token'] != null) {
+          await _tokenManager.setTokens(
+            responseData['access_token'],
+            refreshToken: responseData['refresh_token'],
+          );
           return AuthResult(
             success: true,
-            data: data,
+            accessToken: responseData['access_token'],
+            data: responseData,
           );
         } else {
           return AuthResult(
@@ -124,12 +141,9 @@ class AuthService {
           );
         }
       } else {
-        final error = json.decode(response.body);
-        String message = error['detail'] ?? 'Login failed';
-
         return AuthResult(
           success: false,
-          errorMessage: message,
+          errorMessage: responseData['detail'] ?? 'Login failed',
         );
       }
     } catch (e) {
@@ -138,7 +152,7 @@ class AuthService {
       }
       return AuthResult(
         success: false,
-        errorMessage: 'Login failed: $e',
+        errorMessage: 'Login failed: ${e.toString()}',
       );
     }
   }
@@ -161,14 +175,15 @@ class AuthService {
         print('Password reset request response body: ${response.body}');
       }
 
-      final data = json.decode(response.body);
+      final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
         return AuthResult(success: true);
       } else {
         return AuthResult(
           success: false,
-          errorMessage: data['detail'] ?? 'Failed to request password reset',
+          errorMessage:
+              responseData['detail'] ?? 'Failed to request password reset',
         );
       }
     } catch (e) {
@@ -177,9 +192,13 @@ class AuthService {
       }
       return AuthResult(
         success: false,
-        errorMessage: 'Network error: $e',
+        errorMessage: 'Network error: ${e.toString()}',
       );
     }
+  }
+
+  Future<void> saveAuthData(String accessToken, {String? refreshToken}) async {
+    await _tokenManager.setTokens(accessToken, refreshToken: refreshToken);
   }
 
   Future<AuthResult> verifyResetCode(String email, String resetCode) async {
@@ -193,23 +212,23 @@ class AuthService {
         }),
       );
 
-      final data = json.decode(response.body);
+      final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
         return AuthResult(
-          success: data['valid'] ?? false,
-          errorMessage: data['valid'] ? null : 'Invalid reset code',
+          success: responseData['valid'] ?? false,
+          errorMessage: responseData['valid'] ? null : 'Invalid reset code',
         );
       } else {
         return AuthResult(
           success: false,
-          errorMessage: data['detail'] ?? 'Failed to verify reset code',
+          errorMessage: responseData['detail'] ?? 'Failed to verify reset code',
         );
       }
     } catch (e) {
       return AuthResult(
         success: false,
-        errorMessage: 'Network error: $e',
+        errorMessage: 'Network error: ${e.toString()}',
       );
     }
   }
@@ -230,40 +249,21 @@ class AuthService {
         }),
       );
 
-      final data = json.decode(response.body);
+      final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
         return AuthResult(success: true);
       } else {
         return AuthResult(
           success: false,
-          errorMessage: data['detail'] ?? 'Failed to reset password',
+          errorMessage: responseData['detail'] ?? 'Failed to reset password',
         );
       }
     } catch (e) {
       return AuthResult(
         success: false,
-        errorMessage: 'Network error: $e',
+        errorMessage: 'Network error: ${e.toString()}',
       );
     }
-  }
-
-  Future<bool> resendVerificationEmail(String email) async {
-    return await _apiService.resendVerificationEmail(email);
-  }
-
-  Future<void> saveAuthData(String accessToken, {String? refreshToken}) async {
-    await _apiService.setAccessToken(accessToken);
-    if (refreshToken != null) {
-      await storage.write(key: 'refresh_token', value: refreshToken);
-    }
-  }
-}
-
-class EmailAlreadyExistsException implements Exception {
-  const EmailAlreadyExistsException();
-  @override
-  String toString() {
-    return 'Email already exists';
   }
 }

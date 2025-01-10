@@ -1,59 +1,27 @@
 import 'package:flutter/material.dart';
-import '../services/google_auth_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_state.dart';
 import '../widgets/email_sign_in_form.dart';
 import '../widgets/google_sign_in_button.dart';
 
-class AuthScreen extends StatefulWidget {
+class AuthScreen extends ConsumerWidget {
   const AuthScreen({super.key});
 
-  @override
-  State<AuthScreen> createState() => _AuthScreenState();
-}
-
-class _AuthScreenState extends State<AuthScreen> {
-  final _googleAuthService = GoogleAuthService();
-  bool _isLoading = false;
-  bool _isLogin = true;
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final result = await _googleAuthService.signInWithGoogle();
-
-      if (result.success && mounted) {
-        Navigator.pushReplacementNamed(context, '/profile');
-      } else if (mounted) {
-        if (result.errorMessage != null &&
-            !result.errorMessage!.toLowerCase().contains('cancel') &&
-            !result.errorMessage!.toLowerCase().contains('aborted')) {
-          setState(() {});
-        }
-      }
-    } catch (e) {
-      final errorString = e.toString().toLowerCase();
-      if (!errorString.contains('cancel') &&
-          !errorString.contains('aborted') &&
-          !errorString.contains('sign_in_canceled')) {
-        setState(() {});
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _handleAuthSuccess() {
+  void _handleAuthSuccess(BuildContext context) {
     Navigator.pushReplacementNamed(context, '/profile');
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+
+    // Watch for user state changes and navigate if logged in
+    ref.listen(authStateProvider, (previous, next) {
+      if (next.user != null) {
+        _handleAuthSuccess(context);
+      }
+    });
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -68,7 +36,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 32),
                   // Header Text
                   Text(
-                    _isLogin ? 'Welcome back' : 'Create account',
+                    authState.isLogin ? 'Welcome back' : 'Create account',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: Colors.black87,
@@ -77,7 +45,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     textAlign: TextAlign.center,
                   ),
                   Text(
-                    _isLogin
+                    authState.isLogin
                         ? 'Sign in to continue'
                         : 'Start your journey with us',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -90,8 +58,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   // Google Sign-in Button
                   GoogleSignInButton(
-                    onPressed: _handleGoogleSignIn,
-                    isLoading: _isLoading,
+                    onPressed: () => ref
+                        .read(authStateProvider.notifier)
+                        .handleGoogleSignIn(),
+                    isLoading: authState.isLoading,
                   ),
 
                   // Divider
@@ -117,14 +87,20 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   // Email Sign-in Form
                   EmailSignInForm(
-                    isLogin: _isLogin,
-                    onToggleMode: (isLogin) {
-                      setState(() {
-                        _isLogin = isLogin;
-                      });
-                    },
-                    onSuccess: _handleAuthSuccess,
+                    isLogin: authState.isLogin,
+                    onToggleMode: (_) =>
+                        ref.read(authStateProvider.notifier).toggleLoginMode(),
+                    onSuccess: () => _handleAuthSuccess(context),
                   ),
+                  if (authState.error != null)
+                    Text(
+                      authState.error!,
+                      style: TextStyle(
+                        color: Colors.red.shade600,
+                        fontSize: 14,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                 ],
               ),
             ),

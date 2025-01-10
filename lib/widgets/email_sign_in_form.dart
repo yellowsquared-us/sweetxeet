@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sweetxeet/utils/validators.dart';
-import '../services/email_auth_service.dart';
+import '../providers/auth_state.dart';
 
-class EmailSignInForm extends StatefulWidget {
+class EmailSignInForm extends ConsumerStatefulWidget {
   final bool isLogin;
   final Function(bool) onToggleMode;
   final VoidCallback onSuccess;
@@ -15,60 +16,38 @@ class EmailSignInForm extends StatefulWidget {
   });
 
   @override
-  State<EmailSignInForm> createState() => _EmailSignInFormState();
+  ConsumerState<EmailSignInForm> createState() => _EmailSignInFormState();
 }
 
-class _EmailSignInFormState extends State<EmailSignInForm> {
+class _EmailSignInFormState extends ConsumerState<EmailSignInForm> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _emailAuthService = EmailAuthService();
-
-  bool _isLoading = false;
-  String? _errorMessage;
 
   void _clearForm() {
     _emailController.clear();
     _passwordController.clear();
-    _errorMessage = null;
   }
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    final authNotifier = ref.read(authStateProvider.notifier);
+    final result = widget.isLogin
+        ? await authNotifier.handleEmailSignIn(
+            _emailController.text,
+            _passwordController.text,
+          )
+        : await authNotifier.handleEmailSignUp(
+            _emailController.text,
+            _passwordController.text,
+          );
 
-    try {
-      final result = widget.isLogin
-          ? await _emailAuthService.login(
-              email: _emailController.text,
-              password: _passwordController.text,
-            )
-          : await _emailAuthService.register(
-              email: _emailController.text,
-              password: _passwordController.text,
-            );
-
-      if (result.success) {
+    if (mounted) {
+      final state = ref.read(authStateProvider);
+      if (state.user != null) {
         _clearForm();
         widget.onSuccess();
-      } else {
-        setState(() {
-          _errorMessage = result.errorMessage ?? 'Authentication failed';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
       }
     }
   }
@@ -82,6 +61,8 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authStateProvider);
+
     return Form(
       key: _formKey,
       child: Column(
@@ -117,7 +98,7 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
             textInputAction: TextInputAction.next,
             textCapitalization: TextCapitalization.none,
             validator: Validators.validateEmail,
-            enabled: !_isLoading,
+            enabled: !authState.isLoading,
           ),
           const SizedBox(height: 16),
           TextFormField(
@@ -149,24 +130,12 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
             obscureText: true,
             textInputAction: TextInputAction.done,
             validator: Validators.validatePassword,
-            enabled: !_isLoading,
+            enabled: !authState.isLoading,
           ),
-          if (_errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Text(
-                _errorMessage!,
-                style: TextStyle(
-                  color: Colors.red.shade600,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: _isLoading ? null : _submitForm,
-            icon: _isLoading
+            onPressed: authState.isLoading ? null : _submitForm,
+            icon: authState.isLoading
                 ? const SizedBox(
                     height: 20,
                     width: 20,
@@ -201,7 +170,7 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               TextButton(
-                onPressed: _isLoading
+                onPressed: authState.isLoading
                     ? null
                     : () => widget.onToggleMode(!widget.isLogin),
                 child: Text(
@@ -214,7 +183,7 @@ class _EmailSignInFormState extends State<EmailSignInForm> {
               ),
               if (widget.isLogin)
                 TextButton(
-                  onPressed: _isLoading
+                  onPressed: authState.isLoading
                       ? null
                       : () => Navigator.pushNamed(
                             context,
