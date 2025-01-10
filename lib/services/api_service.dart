@@ -1,39 +1,23 @@
 // lib/services/api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import '../models/user_profile.dart';
 import '../config/environment.dart';
 import 'auth_service.dart';
+import 'token_manager.dart';
 
 class ApiService {
   final String baseUrl = Environment.apiBaseUrl;
-  final storage = const FlutterSecureStorage(
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock,
-      synchronizable: true,
-    ),
-  );
+  final tokenManager = TokenManager();
 
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
 
-  Future<String?> getAccessToken() async {
-    return await storage.read(key: 'access_token');
-  }
-
-  Future<void> setAccessToken(String token) async {
-    if (kDebugMode) {
-      print('Setting access token: ${token.substring(0, 10)}...');
-    }
-    await storage.write(key: 'access_token', value: token);
-  }
-
   Future<Map<String, String>> getHeaders() async {
-    final token = await getAccessToken();
+    final token = await tokenManager.getAccessToken();
     if (kDebugMode) {
       print('Getting headers with token: ${token?.substring(0, 10)}...');
     }
@@ -75,13 +59,14 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
 
-        // Store the backend token
+        // Store the backend tokens
         if (data['access_token'] != null) {
-          await setAccessToken(data['access_token']);
+          await tokenManager.setTokens(
+            data['access_token'],
+            refreshToken: data['refresh_token'],
+          );
           if (kDebugMode) {
-            print('Successfully stored access token from Google auth');
-            final storedToken = await getAccessToken();
-            print('Verified stored token: ${storedToken?.substring(0, 10)}...');
+            print('Successfully stored tokens from Google auth');
           }
         } else {
           throw Exception('No access token in response');
@@ -176,9 +161,5 @@ class ApiService {
       }
       throw Exception('Error during verification email resend: $e');
     }
-  }
-
-  Future<void> refreshToken() async {
-    // Implement token refresh logic if needed
   }
 }

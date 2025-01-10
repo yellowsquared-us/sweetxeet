@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sweetxeet/screens/forgot_password_screen.dart';
 import 'package:sweetxeet/screens/reset_code_screen.dart';
-import 'screens/auth_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/new_password_screen.dart';
 import 'theme/app_theme.dart';
@@ -24,11 +24,11 @@ class App extends ConsumerWidget {
       onGenerateRoute: (settings) {
         // Watch auth state to handle navigation
         final authState = ref.watch(authStateProvider);
-        
+
         // If user is not authenticated and trying to access protected routes,
         // redirect to auth screen
-        if (authState.user == null && 
-            settings.name != '/auth' && 
+        if (authState.user == null &&
+            settings.name != '/auth' &&
             settings.name != '/forgot-password' &&
             settings.name != '/reset-code' &&
             settings.name != '/new-password') {

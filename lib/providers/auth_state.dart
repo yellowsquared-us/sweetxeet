@@ -4,7 +4,8 @@ import '../services/email_auth_service.dart';
 import '../models/user_profile.dart';
 import '../models/auth_result.dart';
 
-final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((ref) {
+final authStateProvider =
+    StateNotifierProvider<AuthStateNotifier, AuthState>((ref) {
   return AuthStateNotifier();
 });
 
@@ -30,7 +31,7 @@ class AuthState {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
       isLogin: isLogin ?? this.isLogin,
-      error: error,  // Allow setting error to null
+      error: error, // Allow setting error to null
       user: user ?? this.user,
     );
   }
@@ -48,7 +49,7 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
   Future<void> handleGoogleSignIn() async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       final result = await _googleAuthService.signInWithGoogle();
       if (result.success && result.user != null) {
@@ -65,8 +66,8 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
       }
     } catch (e) {
       final errorString = e.toString().toLowerCase();
-      if (!errorString.contains('cancel') && 
-          !errorString.contains('aborted') && 
+      if (!errorString.contains('cancel') &&
+          !errorString.contains('aborted') &&
           !errorString.contains('sign_in_canceled')) {
         state = state.copyWith(
           isLoading: false,
@@ -80,13 +81,13 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
   Future<void> handleEmailSignIn(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       final result = await _emailAuthService.login(
         email: email,
         password: password,
       );
-      
+
       if (result.success && result.data != null) {
         state = state.copyWith(
           isLoading: false,
@@ -113,13 +114,13 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
   Future<void> handleEmailSignUp(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       final result = await _emailAuthService.register(
         email: email,
         password: password,
       );
-      
+
       if (result.success) {
         state = state.copyWith(
           isLoading: false,
@@ -146,14 +147,14 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       if (state.user?.authProvider == 'google') {
         await _googleAuthService.signOut();
       } else {
         await _emailAuthService.logout();
       }
-      
+
       state = AuthState(); // Reset to initial state
     } catch (e) {
       state = state.copyWith(

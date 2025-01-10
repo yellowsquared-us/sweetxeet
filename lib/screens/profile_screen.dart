@@ -35,7 +35,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       final profile = await _apiService.getUserProfile();
       if (!mounted) return;
-      
+
       setState(() {
         _userProfile = profile;
         _loginMethod = profile.authProvider;
@@ -43,7 +43,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      
+
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to load profile')),
@@ -55,11 +55,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       // Use the Riverpod auth state notifier to handle sign out
       await ref.read(authStateProvider.notifier).signOut();
-      
+
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/auth');
       }
@@ -82,7 +82,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     // Watch the auth state
     final authState = ref.watch(authStateProvider);
-    
+
     if (_isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),

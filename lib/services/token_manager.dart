@@ -11,7 +11,7 @@ class TokenManager {
 
   final storage = const FlutterSecureStorage();
   Timer? _refreshTimer;
-  
+
   TokenManager._internal();
 
   Future<String?> getAccessToken() async {
@@ -31,9 +31,11 @@ class TokenManager {
   bool _isTokenExpiringSoon(String token) {
     try {
       final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
-      final expiryDate = DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
+      final expiryDate =
+          DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
       // If token expires in less than 5 minutes, consider it as expiring soon
-      return DateTime.now().isAfter(expiryDate.subtract(const Duration(minutes: 5)));
+      return DateTime.now()
+          .isAfter(expiryDate.subtract(const Duration(minutes: 5)));
     } catch (e) {
       return true;
     }
@@ -85,7 +87,8 @@ class TokenManager {
 
     try {
       final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
-      final expiryDate = DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
+      final expiryDate =
+          DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
       final refreshTime = expiryDate.subtract(const Duration(minutes: 5));
       final now = DateTime.now();
 
